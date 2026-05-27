@@ -1,0 +1,439 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiSearch, FiPlus, FiPhone, FiSettings, FiUsers, FiStar, FiArchive, FiX, FiPhoneIncoming, FiPhoneMissed, FiVideo, FiZap } from 'react-icons/fi';
+import { formatDistanceToNow, format } from 'date-fns';
+import useAuthStore from '../stores/authStore';
+import useChatStore from '../stores/chatStore';
+import { userAPI, callAPI } from '../lib/api';
+import { AI_BOT, AI_CONVERSATION } from '../lib/aiBot';
+import CreateGroupModal from './CreateGroupModal';
+
+export default function Sidebar({ user, conversations, onSelectConversation, onCloseSidebar, isMobile, onSelectAIChat, onOpenProfile, onViewStory, onOpenSettings }) {
+  const [activeTab, setActiveTab] = useState('chats');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const { logout, updateProfile } = useAuthStore();
+  const { activeConversation, setActiveConversation, createConversation } = useChatStore();
+
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      setIsSearching(true);
+      const timer = setTimeout(async () => {
+        try {
+          const response = await userAPI.search(searchQuery);
+          setSearchResults(response.data);
+        } catch (error) {
+          console.error('Search error:', error);
+        }
+        setIsSearching(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  const handleSelectConversation = async (conv) => {
+    setActiveConversation(conv);
+    if (onSelectConversation) {
+      onSelectConversation(conv);
+    }
+  };
+
+  const handleSelectUser = async (userResult) => {
+    const newConv = await createConversation(userResult._id);
+    if (newConv) {
+      setActiveConversation(newConv);
+      if (onSelectConversation) {
+        onSelectConversation(newConv);
+      }
+    }
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const getConversationName = (conv) => {
+    if (conv.type === 'group' || conv.type === 'channel') {
+      return conv.name || 'Group';
+    }
+    const otherUser = conv.participants?.find(p => p._id !== user?._id);
+    return otherUser?.displayName || otherUser?.username || 'Unknown';
+  };
+
+  const getConversationAvatar = (conv) => {
+    if (conv.type === 'group' || conv.type === 'channel') {
+      return conv.avatar ? (
+        <img src={conv.avatar} alt={conv.name} />
+      ) : (
+        <FiUsers />
+      );
+    }
+    const otherUser = conv.participants?.find(p => p._id !== user?._id);
+    return otherUser?.avatar ? (
+      <img src={otherUser.avatar} alt={otherUser.username} />
+    ) : (
+      (otherUser?.displayName || otherUser?.username || '?')[0].toUpperCase()
+    );
+  };
+
+  const getMemberCount = (conv) => {
+    return conv.memberCount || conv.group?.memberCount || conv.participants?.length || 0;
+  };
+
+  const isUserOnline = (conv) => {
+    if (conv.type === 'group') return false;
+    const otherUser = conv.participants?.find(p => p._id !== user?._id);
+    return otherUser?.isOnline || false;
+  };
+
+  const filteredConversations = conversations.filter(conv => {
+    const name = getConversationName(conv).toLowerCase();
+    return name.includes(searchQuery.toLowerCase());
+  });
+
+  const groupConversations = filteredConversations.filter(conv => conv.type === 'group');
+
+  const getOnlineMemberCount = (conv) => {
+    if (conv.type !== 'group') return 0;
+    return conv.participants?.filter(p => p.isOnline).length || 0;
+  };
+
+  const tabs = [
+    { id: 'chats', label: 'Chats' },
+    { id: 'groups', label: 'Groups' },
+    { id: 'status', label: 'Status' },
+    { id: 'calls', label: 'Calls' }
+  ];
+
+  return (
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isMobile && (
+              <button className="sidebar-close-btn" onClick={onCloseSidebar}>
+                <FiX />
+              </button>
+            )}
+            <div
+              className="avatar"
+              style={{ cursor: 'pointer' }}
+              onClick={onOpenProfile}
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.username} />
+              ) : (
+                (user?.displayName || user?.username || '?')[0].toUpperCase()
+              )}
+            </div>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '15px' }}>
+                {user?.displayName || user?.username}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {user?.isOnline ? 'Online' : 'Offline'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="header-action-btn">
+              <FiPhone />
+            </button>
+            <button className="header-action-btn" onClick={onOpenSettings}>
+              <FiSettings />
+            </button>
+          </div>
+        </div>
+
+        <div className="search-bar">
+          <FiSearch style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <button
+            className="search-create-btn"
+            onClick={() => setShowCreateGroup(true)}
+            title="Create Group"
+            aria-label="Create Group"
+          >
+            <FiPlus />
+          </button>
+        </div>
+
+        <button className="create-group-btn" onClick={() => setShowCreateGroup(true)}>
+          <FiUsers />
+          <span>Create Group</span>
+        </button>
+      </div>
+
+      <div className="sidebar-tabs">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="conversation-list">
+        {isSearching && searchQuery.length >= 2 ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Searching...
+          </div>
+        ) : searchResults.length > 0 ? (
+          <div>
+            <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+              CONTACTS
+            </div>
+            {searchResults.map(result => (
+              <div
+                key={result._id}
+                className="conversation-item"
+                onClick={() => handleSelectUser(result)}
+              >
+                <div className={`avatar ${result.isOnline ? 'online' : ''}`}>
+                  {result.avatar ? (
+                    <img src={result.avatar} alt={result.username} />
+                  ) : (
+                    (result.displayName || result.username)[0].toUpperCase()
+                  )}
+                </div>
+                <div className="conversation-info">
+                  <div className="conversation-name">{result.displayName || result.username}</div>
+                  <div className="conversation-preview">{result.bio || 'Hey there!'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : activeTab === 'chats' ? (
+          <>
+            <motion.div
+              className={`conversation-item ${activeConversation?._id === AI_CONVERSATION._id ? 'active' : ''}`}
+              onClick={() => { if (onSelectAIChat) onSelectAIChat(AI_CONVERSATION); }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              style={{ marginBottom: '4px', border: '1px solid rgba(99, 102, 241, 0.12)', borderRadius: '12px', background: activeConversation?._id === AI_CONVERSATION._id ? 'rgba(99, 102, 241, 0.08)' : 'transparent' }}
+            >
+              <div className="avatar" style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', boxShadow: '0 0 12px rgba(99,102,241,0.3)' }}>
+                <FiZap />
+              </div>
+              <div className="conversation-info">
+                <div className="conversation-name">
+                  Nexus AI
+                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a78bfa', fontWeight: 700, marginLeft: 8 }}>AI</span>
+                </div>
+                <div className="conversation-preview" style={{ color: '#a78bfa' }}>
+                  ✨ Generate images from text prompts
+                </div>
+              </div>
+              <div className="conversation-meta">
+                <div style={{ fontSize: '10px', color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  Online
+                </div>
+              </div>
+            </motion.div>
+
+            <div style={{ padding: '4px 16px 8px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Conversations
+            </div>
+
+            {filteredConversations.length > 0 ? (
+            filteredConversations.map(conv => (
+              <motion.div
+                key={conv._id}
+                className={`conversation-item ${activeConversation?._id === conv._id ? 'active' : ''}`}
+                onClick={() => handleSelectConversation(conv)}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+              >
+                <div className={`avatar ${isUserOnline(conv) ? 'online' : ''}`}>
+                  {getConversationAvatar(conv)}
+                </div>
+                <div className="conversation-info">
+                  <div className="conversation-name">
+                    {getConversationName(conv)}
+                    {conv.isPinned && <span className="pinned-icon">📌</span>}
+                  </div>
+                  <div className="conversation-preview">
+                    {conv.type === 'group'
+                      ? `${getMemberCount(conv)} members`
+                      : conv.lastMessage?.content?.substring(0, 40) || 'No messages yet'}
+                    {conv.type !== 'group' && conv.lastMessage?.content?.length > 40 && '...'}
+                  </div>
+                </div>
+                <div className="conversation-meta">
+                  {conv.lastMessageAt && (
+                    <span className="conversation-time">
+                      {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: false })}
+                    </span>
+                  )}
+                  {conv.unreadCount > 0 && (
+                    <span className="unread-badge">{conv.unreadCount}</span>
+                  )}
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <FiStar style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+              <p>No conversations yet</p>
+              <p style={{ fontSize: '13px' }}>Start a new chat!</p>
+            </div>
+          )}
+          </>
+        ) : activeTab === 'groups' ? (
+          <div className="groups-tab-content">
+            <div className="groups-list">
+              {groupConversations.length > 0 ? (
+                groupConversations.map(conv => (
+                  <motion.div
+                    key={conv._id}
+                    className={`group-card ${activeConversation?._id === conv._id ? 'active' : ''}`}
+                    onClick={() => handleSelectConversation(conv)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <div className="group-card-avatar">
+                      {conv.avatar ? (
+                        <img src={conv.avatar} alt={conv.name} />
+                      ) : (
+                        <FiUsers />
+                      )}
+                    </div>
+                    <div className="group-card-info">
+                      <div className="group-card-name">{conv.name || 'Group'}</div>
+                      <div className="group-card-preview">
+                        {conv.lastMessage?.content?.substring(0, 50) || 'No messages yet'}
+                      </div>
+                      <div className="group-card-meta">
+                        <span className="group-card-online">
+                          <span className="group-online-dot"></span>
+                          {getOnlineMemberCount(conv)} online
+                        </span>
+                        <span className="group-member-count">
+                          {getMemberCount(conv)} members
+                        </span>
+                        {conv.lastMessageAt && (
+                          <span className="group-time">
+                            {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: false })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="group-card-end">
+                      {conv.unreadCount > 0 && (
+                        <span className="unread-badge">{conv.unreadCount}</span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="groups-empty-state">
+                  <FiUsers style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+                  <p>No groups yet</p>
+                  <p style={{ fontSize: '13px', marginTop: '8px' }}>Create a group to start collaborating</p>
+                </div>
+              )}
+            </div>
+            <button className="groups-fab" onClick={() => setShowCreateGroup(true)} title="Create Group">
+              <FiPlus />
+            </button>
+          </div>
+        ) : (
+          <div className="calls-tab">
+            <CallHistory user={user} />
+          </div>
+        )}
+      </div>
+
+      <CreateGroupModal
+        currentUser={user}
+        isOpen={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+      />
+    </div>
+  );
+}
+
+function CallHistory({ user }) {
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    callAPI.getHistory()
+      .then(res => { if (mounted) setCalls(res.data || []); })
+      .catch(() => {})
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading calls…</div>;
+  }
+
+  if (calls.length === 0) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <FiPhone style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+        <p>No call history</p>
+        <p style={{ fontSize: '13px', marginTop: '8px' }}>Your calls will appear here</p>
+      </div>
+    );
+  }
+
+  const getCallIcon = (call) => {
+    if (call.status === 'missed' || call.status === 'rejected') return <FiPhoneMissed style={{ color: 'var(--danger)' }} />;
+    if (call.type === 'video') return <FiVideo style={{ color: 'var(--primary)' }} />;
+    return <FiPhoneIncoming style={{ color: call.caller?._id === user?._id ? 'var(--primary)' : 'var(--success)' }} />;
+  };
+
+  return (
+    <div className="call-history-list">
+      {calls.map((call) => (
+        <div key={call._id} className="call-history-item">
+          <div className="call-history-avatar">
+            {call.caller?.avatar ? (
+              <img src={call.caller.avatar} alt="" />
+            ) : (
+              (call.caller?.displayName || call.caller?.username || '?')[0].toUpperCase()
+            )}
+          </div>
+          <div className="call-history-info">
+            <div className="call-history-name">
+              {call.caller?.displayName || call.caller?.username || 'Unknown'}
+            </div>
+            <div className="call-history-meta">
+              {getCallIcon(call)}
+              <span className="call-history-type">
+                {call.type === 'video' ? 'Video' : 'Voice'} call
+              </span>
+              {call.status === 'missed' && <span className="call-history-badge missed">Missed</span>}
+              {call.status === 'rejected' && <span className="call-history-badge rejected">Declined</span>}
+              {call.duration > 0 && (
+                <span className="call-history-duration">
+                  {Math.floor(call.duration / 60)}:{String(call.duration % 60).padStart(2, '0')}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="call-history-time">
+            {call.startedAt && format(new Date(call.startedAt), 'MMM d, HH:mm')}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

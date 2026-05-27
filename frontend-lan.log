@@ -1,0 +1,32 @@
+
+> chatwave-frontend@1.0.0 dev
+> next dev -H 0.0.0.0 -p 3000
+
+   ▲ Next.js 14.0.4
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+ ✓ Compiled / in 5.8s (1472 modules)
+ ○ Compiling /not-found ...
+ ✓ Compiled /not-found in 644ms (1463 modules)
+ ✓ Compiled in 773ms (1463 modules)
+ ✓ Compiled in 391ms (1463 modules)
+ ✓ Compiled in 712ms (1477 modules)
+ ✓ Compiled in 1027ms (1458 modules)
+ ✓ Compiled in 356ms (1458 modules)
+ ✓ Compiled in 287ms (1458 modules)
+ ✓ Compiled in 271ms (1458 modules)
+ ✓ Compiled in 289ms (1458 modules)
+ ✓ Compiled in 326ms (1458 modules)
+ ✓ Compiled in 390ms (1458 modules)
+ ✓ Compiled in 349ms (1458 modules)
+ ✓ Compiled in 350ms (1458 modules)
+ ✓ Compiled in 423ms (1458 modules)
+ ✓ Compiled in 299ms (1458 modules)
+ ✓ Compiled in 335ms (1458 modules)
+ ✓ Compiled in 374ms (1458 modules)
+ ✓ Compiled in 351ms (1472 modules)
+ ○ Compiling /not-found ...
+ ✓ Compiled /not-found in 933ms (1463 modules)

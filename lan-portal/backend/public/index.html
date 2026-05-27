@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LAN Portal</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">LAN Portal</div>
+    <div id="lan-info" class="lan-info">Detecting local URL…</div>
+  </header>
+
+  <main class="main">
+    <section class="left">
+      <div class="qr-card">
+        <h3>Open on your phone</h3>
+        <img id="qr" alt="QR code" />
+        <div id="lan-url" class="lan-url"></div>
+      </div>
+
+      <div class="join-card">
+        <input id="name" placeholder="Your name (optional)" />
+        <button id="join">Join</button>
+      </div>
+
+      <div class="users">
+        <h4>Online</h4>
+        <ul id="users-list"></ul>
+      </div>
+    </section>
+
+    <section class="chat">
+      <div id="messages" class="messages"></div>
+      <div class="composer">
+        <input id="message-input" placeholder="Type a message..." />
+        <button id="send">Send</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Call Overlay -->
+  <div id="call-overlay" class="call-overlay hidden">
+    <div class="video-area">
+      <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+      <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+    </div>
+
+    <div class="call-controls">
+      <button id="toggleMic" class="control">Mute</button>
+      <button id="toggleCam" class="control">Cam</button>
+      <button id="endCall" class="control end">End</button>
+    </div>
+  </div>
+
+  <!-- Incoming call modal -->
+  <div id="incoming" class="incoming hidden">
+    <div class="incoming-card">
+      <div id="incoming-from" class="incoming-from">Incoming call</div>
+      <div class="incoming-actions">
+        <button id="acceptCall" class="accept">Accept</button>
+        <button id="rejectCall" class="reject">Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
+  </script>
+</body>
+</html>

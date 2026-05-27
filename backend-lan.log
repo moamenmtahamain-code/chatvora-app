@@ -1,0 +1,40 @@
+(node:20324) [MONGOOSE] Warning: Duplicate schema index on {"callId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-05-15 00:09:52 [31merror[39m: MongoDB connection error: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+2026-05-15 00:09:52 [32minfo[39m: Attempting to start in-memory MongoDB for development...
+2026-05-15 00:09:53 [32minfo[39m: Connected to in-memory MongoDB
+2026-05-15 00:09:53 [32minfo[39m: API and Socket.IO listening on http://0.0.0.0:5000
+2026-05-15 00:09:53 [32minfo[39m: LAN backend URL: http://192.168.100.29:5000
+2026-05-15 00:09:53 [32minfo[39m: Open the app from another device at: http://192.168.100.29:3000
+2026-05-15 00:16:12 [32minfo[39m: User connected: Mamen mahmoud (I1tNiwIYmyc0QeiPAAAC)
+2026-05-15 00:16:22 [32minfo[39m: User connected: mahmoud (zLDKzOl2o6osVJ0HAAAE)
+2026-05-15 00:47:44 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:44 [32minfo[39m: User connected: Mamen mahmoud (6jiYOS4CLeu-pZMEAAAH)
+2026-05-15 00:47:44 [32minfo[39m: User connected: Mamen mahmoud (Q0r4een--JBnzzepAAAI)
+2026-05-15 00:47:51 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:51 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:52 [32minfo[39m: User connected: Mamen mahmoud (Dp1AQXkDxH-ecREMAAAL)
+2026-05-15 00:47:52 [32minfo[39m: User connected: Mamen mahmoud (0ET4aYMfMTTibpCkAAAM)
+2026-05-15 00:47:55 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:55 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:56 [32minfo[39m: User connected: Mamen mahmoud (U_D29-RuNgn3Lk8LAAAP)
+2026-05-15 00:47:56 [32minfo[39m: User connected: Mamen mahmoud (GhP-hbBvLrzX1vv-AAAQ)
+2026-05-15 00:47:59 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:47:59 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:48:03 [32minfo[39m: User connected: Mamen mahmoud (Kdydu3gjcNQxOOjEAAAT)
+2026-05-15 00:48:03 [32minfo[39m: User connected: Mamen mahmoud (UsMiWje261pESw8EAAAU)
+2026-05-15 00:50:23 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:50:23 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:50:23 [32minfo[39m: User connected: Mamen mahmoud (KTUrvz-UjKIUrpBZAAAX)
+2026-05-15 00:50:23 [32minfo[39m: User connected: Mamen mahmoud (7UIgNNxv3Ac4r9nRAAAY)
+2026-05-15 00:52:19 [32minfo[39m: User connected: Mamen mahmoud (c3rjjayzNhzadN72AAAa)
+2026-05-15 00:52:19 [32minfo[39m: User connected: mahmoud (p--hQFt7CvEwxeKIAAAc)
+2026-05-15 00:52:19 [32minfo[39m: User connected: Mamen mahmoud (MLGrtD2ZEUlqiWpKAAAe)
+2026-05-15 00:52:19 [32minfo[39m: User connected: mahmoud (aQ_ibv_MK4AQCN30AAAg)
+2026-05-15 00:55:36 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:55:36 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:55:36 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:55:36 [32minfo[39m: User disconnected: Mamen mahmoud
+2026-05-15 00:56:06 [32minfo[39m: User disconnected: mahmoud
+2026-05-15 00:56:06 [32minfo[39m: User disconnected: mahmoud
+2026-05-15 00:56:06 [32minfo[39m: User disconnected: mahmoud
