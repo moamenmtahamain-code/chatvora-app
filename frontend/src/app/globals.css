@@ -6891,3 +6891,520 @@ body.sidebar-open {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — Full mobile-first support for all screens ≤768px
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── MOBILE SIDEBAR OVERLAY ─────────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 998;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.visible {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ─── MOBILE BOTTOM NAV ──────────────────────────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* ─── MOBILE HAMBURGER BUTTON ────────────────────────────────────────────── */
+.mobile-hamburger {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 20px;
+  background: var(--dark-surface-2);
+  border: 1px solid var(--dark-border);
+  margin-bottom: 16px;
+}
+
+/* ─── RESPONSIVE BREAKPOINT ≤ 768px ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* ── App Container ── */
+  .app-container {
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── Sidebar: full-width slide-in panel ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 360px;
+    min-width: unset;
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Prevent body scroll when sidebar open */
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  /* ── Chat Area: full width ── */
+  .chat-area {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-area.hidden-mobile {
+    display: none;
+  }
+
+  /* ── Mobile Bottom Navigation ── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--dark-surface);
+    border-top: 1px solid var(--dark-border);
+    z-index: 997;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    transition: var(--transition);
+    min-width: 56px;
+  }
+
+  .mobile-nav-btn svg {
+    font-size: 20px;
+  }
+
+  .mobile-nav-btn.active {
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  /* ── Hamburger visible on mobile ── */
+  .mobile-hamburger {
+    display: flex;
+  }
+
+  /* ── Chat Header ── */
+  .chat-header {
+    padding: 12px 16px;
+  }
+
+  .chat-header-title {
+    font-size: 15px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-header-actions {
+    gap: 4px;
+  }
+
+  .header-action-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* ── Messages ── */
+  .message {
+    max-width: 88%;
+  }
+
+  .message-bubble {
+    padding: 10px 14px;
+  }
+
+  .message-content {
+    font-size: 14px;
+  }
+
+  .message-image {
+    max-width: 100%;
+    max-height: 250px;
+    object-fit: cover;
+  }
+
+  .messages-container {
+    padding: 12px 8px;
+    /* Leave room for bottom nav */
+    padding-bottom: 68px;
+  }
+
+  /* ── Input Area ── */
+  .input-area {
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+
+  .input-actions {
+    gap: 2px;
+  }
+
+  .input-action-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .message-input-container {
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  .message-input {
+    font-size: 14px;
+    padding: 6px 0;
+  }
+
+  .send-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* ── Sidebar Header & Search ── */
+  .sidebar-header {
+    padding: 14px 16px;
+  }
+
+  .search-bar {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .sidebar-tabs {
+    padding: 10px 16px;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .conversation-item {
+    padding: 10px 12px;
+  }
+
+  .avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+
+  /* ── Empty Chat ── */
+  .empty-chat {
+    padding: 20px;
+  }
+
+  .empty-chat h2 {
+    font-size: 20px;
+  }
+
+  .empty-chat p {
+    font-size: 13px;
+  }
+
+  /* ── Auth Pages ── */
+  .auth-container {
+    padding: 28px 20px;
+    margin: 0 12px;
+    border-radius: var(--radius-lg);
+  }
+
+  .auth-logo h1 {
+    font-size: 24px;
+  }
+
+  .form-input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .auth-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* ── App Actions Stack (FAB) ── */
+  .app-actions-stack {
+    bottom: 76px !important;
+    right: 12px !important;
+  }
+
+  .app-action-btn {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  /* ── E2EE Badge ── */
+  .e2ee-badge {
+    bottom: 76px;
+    left: 8px;
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+
+  /* ── Scroll to bottom ── */
+  .scroll-to-bottom-btn {
+    bottom: calc(100% + 72px);
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+
+  /* ── Emoji Picker ── */
+  .emoji-picker-container {
+    left: -8px;
+    right: -8px;
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+
+  /* ── Attachment Menu ── */
+  .attachment-menu {
+    left: 4px;
+    right: 4px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Context Menu ── */
+  .context-menu {
+    min-width: 180px;
+  }
+
+  /* ── Modal / Dialog ── */
+  .modal-overlay,
+  .profile-manager-overlay,
+  .wallpaper-picker-overlay {
+    padding: 12px;
+    align-items: flex-end !important;
+  }
+
+  .modal-content,
+  .profile-manager-content,
+  .wallpaper-picker-content {
+    max-height: 85vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* ── Story Viewer ── */
+  .story-viewer {
+    inset: 0;
+  }
+
+  /* ── Call Overlay ── */
+  .call-overlay {
+    inset: 0;
+  }
+
+  /* ── Profile Panel ── */
+  .profile-panel {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  /* ── Global Search ── */
+  .global-search-overlay {
+    padding: 0;
+  }
+
+  .global-search-content {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  /* ── Wallpaper layer ── */
+  .global-wallpaper-layer {
+    inset: 0;
+  }
+
+  /* ── Connection bar ── */
+  .connection-bar {
+    font-size: 11px;
+    height: 24px;
+  }
+
+  /* ── Reply Preview ── */
+  .reply-preview {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* ── Landing Page (page.js) ── */
+  section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* ── Prevent horizontal overflow ── */
+  * {
+    max-width: 100vw;
+  }
+
+  img, video, iframe, embed, object {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* ── Settings page ── */
+  .settings-page,
+  .settings-container {
+    padding: 16px 12px;
+  }
+}
+
+/* ─── RESPONSIVE BREAKPOINT ≤ 480px (Very small phones) ──────────────────── */
+@media (max-width: 480px) {
+  .sidebar {
+    width: 92vw;
+  }
+
+  .auth-container {
+    padding: 24px 16px;
+    margin: 0 8px;
+  }
+
+  .chat-header-title {
+    max-width: 90px;
+    font-size: 14px;
+  }
+
+  .message {
+    max-width: 92%;
+  }
+
+  .message-bubble {
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .input-area {
+    padding: 8px 8px;
+    gap: 6px;
+  }
+
+  .message-input {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+
+  .app-actions-stack {
+    gap: 6px !important;
+  }
+
+  .app-action-btn {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .mobile-nav-btn {
+    font-size: 9px;
+    padding: 4px 8px;
+    min-width: 48px;
+  }
+
+  .mobile-nav-btn svg {
+    font-size: 18px;
+  }
+
+  .mobile-bottom-nav {
+    height: 54px;
+  }
+}
+
+/* ─── LANDSCAPE MOBILE (height ≤ 500px & width ≤ 900px) ──────────────────── */
+@media (max-height: 500px) and (max-width: 900px) {
+  .mobile-bottom-nav {
+    height: 48px;
+  }
+
+  .mobile-nav-btn {
+    flex-direction: row;
+    gap: 4px;
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+
+  .mobile-nav-btn svg {
+    font-size: 16px;
+  }
+
+  .chat-header {
+    padding: 8px 12px;
+  }
+
+  .input-area {
+    padding: 6px 10px;
+  }
+
+  .messages-container {
+    padding-bottom: 56px;
+  }
+}
+
+/* ─── SAFE AREA SUPPORT (notched phones like iPhone X+) ──────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .mobile-bottom-nav {
+      height: calc(60px + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .input-area {
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .messages-container {
+      padding-bottom: calc(68px + env(safe-area-inset-bottom));
+    }
+
+    .app-actions-stack {
+      bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
