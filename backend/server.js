@@ -135,9 +135,9 @@ app.get('/', (req, res) => {
     <p class="subtitle">Real-time messaging platform</p>
     <div class="cards">
       <a class="card" href="/api">
-        <div class="icon">💬</div>
-        <div class="title">Chat App</div>
-        <div class="desc">Open the messaging API and start chatting</div>
+        <div class="icon">📡</div>
+        <div class="title">API Endpoints</div>
+        <div class="desc">View available API routes and documentation</div>
       </a>
       <a class="card" href="/leaderboard">
         <div class="icon">🏆</div>
@@ -320,6 +320,30 @@ app.get('/leaderboard', (req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    app: 'Chatvora API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      auth: '/api/auth',
+      users: '/api/users',
+      conversations: '/api/conversations',
+      messages: '/api/messages',
+      groups: '/api/groups',
+      calls: '/api/calls',
+      stories: '/api/stories',
+      notifications: '/api/notifications',
+      upload: '/api/upload',
+      admin: '/api/admin',
+      ai: '/api/ai',
+      leaderboard: '/api/leaderboard'
+    },
+    health: '/health',
+    leaderboard_page: '/leaderboard'
+  });
 });
 
 app.use('/api', generalLimiter, apiRoutes);
