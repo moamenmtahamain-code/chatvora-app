@@ -78,9 +78,76 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ─── ROOT REDIRECT TO LEADERBOARD ────────────────────────────────────────────
+// ─── ROOT WELCOME PAGE ───────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.redirect('/leaderboard');
+  res.send(`<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatvora</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container { text-align: center; padding: 40px 20px; max-width: 600px; }
+    .logo { font-size: 4rem; margin-bottom: 16px; }
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+    .subtitle { color: #888; font-size: 1.1rem; margin-bottom: 48px; }
+    .cards { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+    .card {
+      background: #151520;
+      border: 1px solid #222;
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 240px;
+      text-decoration: none;
+      color: #e0e0e0;
+      transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #667eea;
+      background: #1a1a2e;
+    }
+    .card .icon { font-size: 2.5rem; margin-bottom: 16px; }
+    .card .title { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; }
+    .card .desc { font-size: 0.9rem; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">💬</div>
+    <h1>Chatvora</h1>
+    <p class="subtitle">Real-time messaging platform</p>
+    <div class="cards">
+      <a class="card" href="/api">
+        <div class="icon">💬</div>
+        <div class="title">Chat App</div>
+        <div class="desc">Open the messaging API and start chatting</div>
+      </a>
+      <a class="card" href="/leaderboard">
+        <div class="icon">🏆</div>
+        <div class="title">Leaderboard</div>
+        <div class="desc">See the top contributors in the community</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`);
 });
 
 // ─── LEADERBOARD HTML PAGE ───────────────────────────────────────────────────
