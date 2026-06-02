@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const { getLocalIPv4, isPrivateIPv4 } = require('./utils/network');
 const { connectDatabase, closeDatabase } = require('./database/database');
 const { setupWebSocket } = require('./services/websocket');
+const disappearingMessages = require('./services/disappearingMessages');
 const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 const apiRoutes = require('./routes');
 
@@ -76,6 +77,184 @@ if (!fs.existsSync(uploadsDir)) {
 });
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ─── ROOT REDIRECT TO LEADERBOARD ────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.redirect('/leaderboard');
+});
+
+// ─── LEADERBOARD HTML PAGE ───────────────────────────────────────────────────
+app.get('/leaderboard', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatvora — Leaderboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    .header { text-align: center; margin-bottom: 40px; }
+    .header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .header p { color: #888; font-size: 1.1rem; }
+    .stats-bar {
+      display: flex; gap: 20px; justify-content: center;
+      margin-bottom: 30px; flex-wrap: wrap;
+    }
+    .stat-card {
+      background: #151520; border: 1px solid #222; border-radius: 12px;
+      padding: 16px 28px; text-align: center; min-width: 140px;
+    }
+    .stat-card .number { font-size: 1.8rem; font-weight: 700; color: #667eea; }
+    .stat-card .label { font-size: 0.85rem; color: #888; margin-top: 4px; }
+    .leaderboard-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+    .leaderboard-table th {
+      text-align: left; padding: 12px 16px; color: #888;
+      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .leaderboard-table tr.row {
+      background: #151520; border-radius: 12px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .leaderboard-table tr.row:hover {
+      background: #1a1a2e; transform: scale(1.01);
+    }
+    .leaderboard-table td { padding: 14px 16px; }
+    .leaderboard-table td:first-child { border-radius: 12px 0 0 12px; }
+    .leaderboard-table td:last-child { border-radius: 0 12px 12px 0; }
+    .rank {
+      width: 40px; height: 40px; display: inline-flex;
+      align-items: center; justify-content: center;
+      border-radius: 50%; font-weight: 700; font-size: 0.95rem;
+    }
+    .rank.gold { background: linear-gradient(135deg, #f5af19, #f12711); color: #fff; }
+    .rank.silver { background: linear-gradient(135deg, #bdc3c7, #9ca3af); color: #fff; }
+    .rank.bronze { background: linear-gradient(135deg, #b87333, #cd7f32); color: #fff; }
+    .rank.normal { background: #222; color: #888; }
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+    }
+    .name { font-weight: 600; font-size: 1rem; }
+    .username { color: #888; font-size: 0.85rem; }
+    .online-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: #22c55e; margin-left: 6px;
+    }
+    .offline-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: #555; margin-left: 6px;
+    }
+    .msg-count { font-weight: 700; color: #667eea; font-size: 1.1rem; }
+    .msg-label { font-size: 0.75rem; color: #888; }
+    .loading {
+      text-align: center; padding: 60px 20px; color: #888;
+    }
+    .loading .spinner {
+      display: inline-block; width: 40px; height: 40px;
+      border: 3px solid #222; border-top-color: #667eea;
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { text-align: center; padding: 40px; color: #ef4444; }
+    @media (max-width: 600px) {
+      .container { padding: 20px 12px; }
+      .header h1 { font-size: 1.8rem; }
+      .leaderboard-table th:nth-child(4),
+      .leaderboard-table td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏆 Chatvora Leaderboard</h1>
+      <p>Top contributors in the community</p>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="number" id="total-users">—</div>
+        <div class="label">Total Users</div>
+      </div>
+      <div class="stat-card">
+        <div class="number" id="total-messages">—</div>
+        <div class="label">Total Messages</div>
+      </div>
+    </div>
+    <div id="leaderboard-body">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 16px;">Loading leaderboard...</p>
+      </div>
+    </div>
+  </div>
+  <script>
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch('/api/leaderboard?limit=50');
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+
+        document.getElementById('total-users').textContent = data.totalUsers;
+        const totalMsgs = data.leaderboard.reduce((s, u) => s + u.messageCount, 0);
+        document.getElementById('total-messages').textContent = totalMsgs.toLocaleString();
+
+        if (data.leaderboard.length === 0) {
+          document.getElementById('leaderboard-body').innerHTML =
+            '<div class="loading"><p>No users yet. Be the first to join Chatvora! 🚀</p></div>';
+          return;
+        }
+
+        let html = '<table class="leaderboard-table"><thead><tr>';
+        html += '<th>Rank</th><th>User</th><th>Messages</th><th>Contacts</th>';
+        html += '</tr></thead><tbody>';
+
+        data.leaderboard.forEach(user => {
+          const rankClass = user.rank === 1 ? 'gold' : user.rank === 2 ? 'silver' : user.rank === 3 ? 'bronze' : 'normal';
+          const initial = (user.displayName || user.username || '?')[0].toUpperCase();
+          const statusDot = user.isOnline ? '<span class="online-dot"></span>' : '<span class="offline-dot"></span>';
+
+          html += '<tr class="row">';
+          html += '<td><span class="rank ' + rankClass + '">' + user.rank + '</span></td>';
+          html += '<td><div class="user-info">';
+          html += '<div class="avatar">' + initial + '</div>';
+          html += '<div><div class="name">' + (user.displayName || 'Unknown') + statusDot + '</div>';
+          html += '<div class="username">@' + user.username + '</div></div>';
+          html += '</div></td>';
+          html += '<td><div class="msg-count">' + user.messageCount.toLocaleString() + '</div>';
+          html += '<div class="msg-label">messages</div></td>';
+          html += '<td style="color:#aaa;">' + user.contactCount + '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('leaderboard-body').innerHTML = html;
+      } catch (err) {
+        document.getElementById('leaderboard-body').innerHTML =
+          '<div class="error-msg"><p>⚠️ Failed to load leaderboard. Please try again later.</p></div>';
+      }
+    }
+    loadLeaderboard();
+  </script>
+</body>
+</html>`);
+});
+
 app.use('/api', generalLimiter, apiRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
@@ -125,7 +304,10 @@ async function startServer() {
   // Setup Socket.IO (MUST happen after DB is connected)
   setupWebSocket(io);
 
-  const PORT = process.env.PORT || 5000;
+  // Start disappearing messages cleanup scheduler
+  disappearingMessages.start();
+
+  const PORT = process.env.PORT || 3000;
   const HOST = process.env.HOST || '0.0.0.0';
   server.listen(PORT, HOST, () => {
     logger.info(`API and Socket.IO listening on http://${HOST}:${PORT}`);
@@ -141,6 +323,7 @@ process.on('unhandledRejection', (err) => {
 
 process.on('SIGINT', async () => {
   logger.info('Shutting down gracefully...');
+  disappearingMessages.stop();
   await closeDatabase();
   process.exit(0);
 });

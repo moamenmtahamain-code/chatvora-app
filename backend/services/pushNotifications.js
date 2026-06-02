@@ -15,7 +15,7 @@ function configureWebPush() {
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     if (publicKey && privateKey) {
       webPush.setVapidDetails(
-        process.env.VAPID_SUBJECT || 'mailto:chatwave@app.com',
+        process.env.VAPID_SUBJECT || 'mailto:chatvora@app.com',
         publicKey,
         privateKey
       );
@@ -39,7 +39,7 @@ async function sendPushNotification(userId, title, body, data = {}) {
     const payload = JSON.stringify({
       title,
       body,
-      tag: data.tag || 'chatwave-notification',
+      tag: data.tag || 'chatvora-notification',
       data: {
         url: data.url || '/',
         conversationId: data.conversationId

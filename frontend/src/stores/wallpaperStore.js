@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 
-const STORAGE_KEY = 'chatwave_global_wallpaper';
+const STORAGE_KEY = 'chatvora_global_wallpaper';
 
 const DEFAULT_WALLPAPER = {
   type: 'default',

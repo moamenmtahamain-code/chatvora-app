@@ -8,13 +8,14 @@ import {
   FiMessageCircle, FiPhone, FiUsers, FiVolume2, FiEye,
   FiUser, FiGlobe, FiMonitor, FiType, FiSend,
   FiCamera, FiSmartphone, FiRefreshCw, FiCheck,
-  FiLock, FiActivity, FiStar
+  FiLock, FiActivity, FiStar, FiDownload
 } from 'react-icons/fi';
 import useAuthStore from '../../stores/authStore';
 import useSettingsStore from '../../stores/settingsStore';
 import Toggle from '../../components/ui/Toggle';
 import Button from '../../components/ui/Button';
 import Skeleton, { ProfileSkeleton } from '../../components/ui/Skeleton';
+import DownloadForDesktop from '../../components/DownloadForDesktop';
 
 // ─── SECTION COMPONENT ──────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── APPEARANCE ────────────────────────────────────── */}
-        <Section icon={FiMonitor} title="Appearance" description="Customize how ChatWave looks">
+        <Section icon={FiMonitor} title="Appearance" description="Customize how Chatvora looks">
           <SettingRow
             icon={settings.theme === 'dark' ? FiMoon : FiSun}
             label="Theme"
@@ -349,6 +350,13 @@ export default function SettingsPage() {
           />
         </Section>
 
+        {/* ─── APP ──────────────────────────────────────────── */}
+        <Section icon={FiDownload} title="Desktop App" description="Install Chatvora on your computer">
+          <div style={{ padding: '16px 0' }}>
+            <DownloadForDesktop variant="settings" />
+          </div>
+        </Section>
+
         {/* ─── CHAT ─────────────────────────────────────────── */}
         <Section icon={FiMessageCircle} title="Chat" description="Message preferences">
           <SettingRow
@@ -389,7 +397,7 @@ export default function SettingsPage() {
 
         {/* ─── FOOTER ───────────────────────────────────────── */}
         <div style={{ textAlign: 'center', padding: '16px 0 8px', fontSize: 12, color: 'var(--text-muted)' }}>
-          ChatWave v1.0.0
+          Chatvora v1.0.0
         </div>
       </div>
     </div>

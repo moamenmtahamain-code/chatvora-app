@@ -241,6 +241,25 @@ router.put('/:id/leave', auth, async (req, res) => {
   }
 });
 
+router.put('/:id/disappear-timer', auth, async (req, res) => {
+  try {
+    const { timer } = req.body; // in milliseconds, 0 = off
+    const validTimers = [0, 300000, 3600000, 86400000, 604800000, 2592000000];
+    if (!validTimers.includes(timer)) {
+      return res.status(400).json({ message: 'Invalid timer value' });
+    }
+
+    const conversation = await Conversation.findById(req.params.id);
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' });
+
+    await Conversation.findByIdAndUpdate(req.params.id, { disappearTimer: timer });
+    res.json({ disappearTimer: timer });
+  } catch (error) {
+    logger.error('Disappear timer error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/:id/wallpaper', auth, async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id);

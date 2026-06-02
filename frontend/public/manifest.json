@@ -1,18 +1,22 @@
 {
-  "name": "ChatWave - Premium Messaging",
-  "short_name": "ChatWave",
-  "description": "Modern real-time messaging platform with calls, stories, AI, and end-to-end encryption",
+  "name": "Chatvora",
+  "short_name": "Chatvora",
+  "description": "Chatvora - Modern Real-Time Messenger",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#0f0f1a",
-  "theme_color": "#0f0f1a",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
   "scope": "/",
   "categories": ["social", "communication", "messaging"],
+  "lang": "en",
+  "dir": "ltr",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "edge_side_panel": {},
   "icons": [
-    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
     { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "screenshots": [],
   "shortcuts": [
@@ -20,13 +24,22 @@
       "name": "New Chat",
       "short_name": "Chat",
       "description": "Start a new conversation",
-      "url": "/?new-chat=true"
+      "url": "/?new-chat=true",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "AI Studio",
       "short_name": "AI",
       "description": "Generate images with AI",
-      "url": "/ai"
+      "url": "/ai",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "description": "App settings and preferences",
+      "url": "/settings",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiMoreVertical, FiPhone, FiVideo, FiSearch, FiPaperclip,
@@ -14,7 +14,7 @@ import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import useCallStore from '../stores/callStore';
 import { messageAPI, uploadAPI, userAPI, conversationAPI, aiAPI } from '../lib/api';
-import socketEvents, { setActiveConversationId, getActiveConversationId } from '../lib/socket';
+import socketEvents, { setActiveConversationId, getActiveConversationId, getSocket } from '../lib/socket';
 import VoiceRecorder from './VoiceRecorder';
 
 const BUILTIN_WALLPAPERS = [
@@ -29,8 +29,10 @@ const BUILTIN_WALLPAPERS = [
   { id: 'lavender', name: 'Lavender', gradient: 'linear-gradient(135deg, #2d1b69 0%, #4a2c8a 50%, #7b5ea7 100%)' },
   { id: 'teal', name: 'Teal', gradient: 'linear-gradient(135deg, #004d40 0%, #00695c 50%, #00897b 100%)' },
 ];
-
-export default function ChatArea({ conversation, user, onBack, isMobile, isAIChat }) {
+const ChatArea = memo(function ChatArea({ conversation, user, onBack, isMobile, isAIChat }) {
+  const otherUser = conversation?.user || conversation?.User || {};
+  const chatuser = conversation?.user || conversation?.User || {};
+  const chatUser = conversation?.user || conversation?.User || {};
   const [messageText, setMessageText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -62,13 +64,35 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
   const [searchResults, setSearchResults] = useState([]);
   const [searchActiveIndex, setSearchActiveIndex] = useState(0);
   const searchInputRef = useRef(null);
-  const { messages, isLoadingMessages, sendMessage, loadMoreMessages, updateConversationWallpaper } = useChatStore();
+  const { messages, isLoadingMessages, sendMessage, loadMoreMessages, updateConversationWallpaper, updateConversationLastMessage, upsertConversation, setActiveConversation, createConversation } = useChatStore();
   const { initiateCall, joinRoom } = useCallStore();
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
   const [wallpaperBlur, setWallpaperBlur] = useState(conversation?.wallpaper?.blur ?? 0);
   const [wallpaperBrightness, setWallpaperBrightness] = useState(conversation?.wallpaper?.brightness ?? 0.6);
   const [isAIMode, setIsAIMode] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const mentionIndexRef = useRef(-1);
+
+  const getGroupMemberRole = (memberId) => {
+    if (!conversation || conversation.type !== 'group' || !conversation.groupMembers) {
+      return null;
+    }
+    const member = conversation.groupMembers.find(m => m.user === memberId || m.user?._id === memberId);
+    return member?.role || 'member';
+  };
+
+  const canManageGroupMessages = (messageSenderId) => {
+    if (!conversation || conversation.type !== 'group') return false;
+    const currentUserRole = getGroupMemberRole(user?._id);
+    if (currentUserRole === 'admin' || currentUserRole === 'owner') return true;
+    return user?._id === messageSenderId;
+  };
 
   // Auto-enable AI mode for Nexus AI chat
   useEffect(() => {
@@ -102,6 +126,52 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
           setActiveConversationId(null);
         }
       } catch (e) {}
+    };
+  }, [conversation?._id]);
+
+  // Listen for real-time incoming messages
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleIncomingMessage = (newMessage) => {
+      if (newMessage.conversation === conversation?._id || newMessage.conversation?._id === conversation?._id) {
+        useChatStore.getState().addMessage(newMessage);
+      }
+    };
+
+    socket.on('message-received', handleIncomingMessage);
+    socket.on('new-message', handleIncomingMessage);
+
+    return () => {
+      socket.off('message-received', handleIncomingMessage);
+      socket.off('new-message', handleIncomingMessage);
+    };
+  }, [conversation?._id]);
+
+  // Listen for typing indicators from other users
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleUserTyping = (room) => {
+      if (room === conversation?._id) {
+        setIsTyping(true);
+      }
+    };
+    const handleUserStopTyping = (room) => {
+      if (room === conversation?._id) {
+        setIsTyping(false);
+      }
+    };
+
+    socket.on('user-typing', handleUserTyping);
+    socket.on('user-stop-typing', handleUserStopTyping);
+
+    return () => {
+      socket.off('user-typing', handleUserTyping);
+      socket.off('user-stop-typing', handleUserStopTyping);
+      setIsTyping(false);
     };
   }, [conversation?._id]);
 
@@ -164,6 +234,19 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     setShowScrollToBottom(!near);
   }, [isNearBottom]);
 
+  const handleScroll = useCallback(async (e) => {
+    const el = e.target;
+    checkScrollPosition();
+    if (el.scrollTop < 80 && !isLoadingMoreRef.current) {
+      isLoadingMoreRef.current = true;
+      try {
+        await loadMoreMessages();
+      } finally {
+        isLoadingMoreRef.current = false;
+      }
+    }
+  }, [loadMoreMessages, checkScrollPosition]);
+
   useEffect(() => {
     if (isNearBottomRef.current) {
       scrollToBottom(false);
@@ -214,7 +297,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     const timer = setTimeout(async () => {
       try {
         const response = await userAPI.search(memberQuery.trim());
-        const currentIds = new Set((conversation.members || []).map(member => member.user?._id));
+        const currentIds = new Set((conversation?.members || []).map(member => member.user?._id));
         setMemberResults((response.data || []).filter(person => !currentIds.has(person._id)));
       } catch (error) {
         console.error('Member search error:', error);
@@ -234,6 +317,19 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     }
 
     await sendMessage(messageText, 'text', null, replyingTo?._id);
+
+    // Optimistically update the conversation's lastMessage so the sidebar
+    // immediately shows the sent message without waiting for a socket event.
+    if (conversation) {
+      updateConversationLastMessage(conversation._id, {
+        _id: `temp_lm_${Date.now()}`,
+        content: messageText,
+        type: 'text',
+        sender: user?._id,
+        createdAt: new Date().toISOString()
+      }, { senderId: user?._id });
+    }
+
     setMessageText('');
     setReplyingTo(null);
   };
@@ -251,7 +347,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     const userMsgId = `ai_user_${Date.now()}`;
     const userMessage = {
       _id: userMsgId,
-      conversationId: conversation._id,
+      conversationId: conversation?._id,
       sender: { _id: user?._id || 'current-user', username: user?.username || 'You', displayName: user?.displayName || 'You' },
       content: promptText,
       type: 'text',
@@ -308,37 +404,116 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const tempId = `upload_${Date.now()}`;
+    const fileType = file.type.split('/')[0];
+    const msgType = fileType === 'image' ? 'image' : fileType === 'video' ? 'video' : fileType === 'audio' ? 'audio' : 'document';
+
+    useChatStore.getState().addMessage({
+      _id: tempId,
+      conversationId: conversation?._id,
+      sender: user || { _id: user?._id || 'current-user' },
+      content: '',
+      type: msgType,
+      status: 'sending',
+      isUploading: true,
+      uploadProgress: 0,
+      fileName: file.name,
+      fileSize: file.size,
+      createdAt: new Date().toISOString()
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('conversationId', conversation?._id);
+      if (replyingTo?._id) formData.append('replyTo', replyingTo._id);
+
+      const response = await messageAPI.uploadAndSend(formData);
+      const savedMessage = response.data;
+
+      useChatStore.getState().removeMessage(tempId);
+      useChatStore.getState().addMessage(savedMessage);
+      setShowAttachmentMenu(false);
+      setReplyingTo(null);
+    } catch (error) {
+      console.error('Upload error:', error);
+      useChatStore.getState().updateMessageInList(tempId, {
+        status: 'failed',
+        isUploading: false,
+        content: 'Upload failed',
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleFileSelect = async (type) => {
     setShowAttachmentMenu(false);
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = type === 'image' ? 'image/*' : type === 'video' ? 'video/*' : type === 'audio' ? 'audio/*' : '*';
-    input.multiple = type !== 'image';
+    input.multiple = false;
 
     input.onchange = async (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length === 0) return;
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Optimistic message (loading skeleton)
+      const tempId = `upload_${Date.now()}`;
+      const optimisticMsg = {
+        _id: tempId,
+        conversationId: conversation?._id,
+        sender: user || { _id: user?._id || 'current-user' },
+        content: '',
+        type: type === 'image' ? 'image' : type === 'video' ? 'video' : type === 'audio' ? 'audio' : 'document',
+        status: 'sending',
+        media: null,
+        createdAt: new Date().toISOString(),
+        isUploading: true,
+        uploadProgress: 0,
+        fileName: file.name,
+        fileSize: file.size,
+      };
+      useChatStore.getState().addMessage(optimisticMsg);
 
       try {
-        const uploadFn = files.length > 1 ? uploadAPI.multiple : uploadAPI.single;
-        const response = await uploadFn(files[0]);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('conversationId', conversation?._id);
+        if (replyingTo?._id) formData.append('replyTo', replyingTo._id);
 
-        const media = {
-          url: response.data.url,
-          filename: response.data.filename,
-          size: response.data.size,
-          mimeType: response.data.mimeType,
-          type: response.data.type
-        };
+        // Progress tracking
+        const response = await messageAPI.uploadAndSend(formData);
+        const savedMessage = response.data;
 
-        const msgType = response.data.type === 'image' ? 'image' :
-          response.data.type === 'video' ? 'video' :
-            response.data.type === 'audio' ? 'audio' : 'document';
+        // Replace optimistic message with the real one from server
+        useChatStore.getState().removeMessage(tempId);
+        useChatStore.getState().addMessage(savedMessage);
 
-        await sendMessage('', msgType, media, replyingTo?._id);
         setReplyingTo(null);
       } catch (error) {
         console.error('Upload error:', error);
+        // Mark the optimistic message as failed
+        useChatStore.getState().updateMessageInList(tempId, {
+          status: 'failed',
+          isUploading: false,
+          content: 'Upload failed',
+        });
+      } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
       }
     };
 
@@ -347,7 +522,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
   const handleReaction = (messageId, emoji) => {
     socketEvents.reactToMessage(
-      { conversationId: conversation._id, messageId, emoji },
+      { conversationId: conversation?._id, messageId, emoji },
       (response) => {
         if (response?.ok && response?.reactions) {
           useChatStore.getState().updateReactions(messageId, response.reactions);
@@ -355,105 +530,10 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
       }
     );
     setShowMessageMenu(null);
-  };
-
-  const handleScroll = useCallback(async (e) => {
-    const el = e.target;
-    checkScrollPosition();
-
-    if (el.scrollTop < 80 && !isLoadingMoreRef.current) {
-      isLoadingMoreRef.current = true;
-      try {
-        await loadMoreMessages();
-      } finally {
-        isLoadingMoreRef.current = false;
-      }
-    }
-  }, [loadMoreMessages, checkScrollPosition]);
-
-  const handleEmojiClick = (emojiObject) => {
-    if (emojiObject?.emoji) {
-      setMessageText((prev) => prev + emojiObject.emoji);
-      setShowEmojiPicker(false);
-    }
-  };
-
-  const handleQuickReaction = (messageId, emoji) => {
-    // Optimistic local update for instant feedback
-    const { messages } = useChatStore.getState();
-    const msg = messages.find(m => m._id === messageId);
-    if (msg) {
-      const existingReactions = msg.reactions || [];
-      const existingIdx = existingReactions.findIndex(
-        r => (r.user?._id === user?._id || r.user === user?._id) && r.emoji === emoji
-      );
-      let updatedReactions;
-      if (existingIdx > -1) {
-        updatedReactions = [...existingReactions];
-        updatedReactions.splice(existingIdx, 1);
-      } else {
-        updatedReactions = [...existingReactions, { user: { _id: user._id, username: user.username, displayName: user.displayName }, emoji, createdAt: new Date().toISOString() }];
-      }
-      useChatStore.getState().updateReactions(messageId, updatedReactions);
-    }
-
-    // Send via Socket.IO for real-time broadcast
-    socketEvents.reactToMessage(
-      { conversationId: conversation._id, messageId, emoji },
-      (response) => {
-        if (response?.ok && response?.reactions) {
-          useChatStore.getState().updateReactions(messageId, response.reactions);
-        }
-      }
-    );
-    setShowMessageMenu(null);
-  };
-
-  const otherUser = useMemo(() => {
-    if (!conversation || conversation.type === 'group') return null;
-    return conversation.participants?.find(p => p._id !== user?._id);
-  }, [conversation?.type, conversation?.participants, user?._id]);
-
-  const userGroupRole = useMemo(() => {
-    if (!user?._id || conversation?.type !== 'group') return null;
-    return conversation.members?.find(m => m.user?._id === user._id || m.user === user._id)?.role || null;
-  }, [user?._id, conversation?.type, conversation?.members]);
-
-  const getGroupMemberRole = (userId) => {
-    if (!userId || conversation.type !== 'group') return null;
-    return conversation.members?.find(member => member.user?._id === userId || member.user === userId)?.role || null;
-  };
-
-  const canManageGroupMessages = ['owner', 'admin', 'moderator'].includes(userGroupRole);
-  const canAdminGroup = ['owner', 'admin'].includes(userGroupRole);
-
-  const handleUpdateGroupInfo = () => {
-    socketEvents.updateGroupInfo(conversation.groupId, groupEdit, (response) => {
-      if (response?.conversation) {
-        useChatStore.getState().updateActiveConversation(response.conversation);
-      }
-    });
-  };
-
-  const handleAddMember = (person) => {
-    socketEvents.addGroupMembers(conversation.groupId, [person._id], (response) => {
-      if (response?.conversation) {
-        useChatStore.getState().updateActiveConversation(response.conversation);
-        setMemberResults((items) => items.filter(item => item._id !== person._id));
-      }
-    });
-  };
-
-  const handleRemoveMember = (member) => {
-    socketEvents.removeGroupMember(conversation.groupId, member.user?._id, (response) => {
-      if (response?.conversation) {
-        useChatStore.getState().updateActiveConversation(response.conversation);
-      }
-    });
   };
 
   const handleDeleteMessage = (message) => {
-    if (conversation.type === 'group' && (canManageGroupMessages || message.sender?._id === user?._id)) {
+    if (conversation?.type === 'group' && (canManageGroupMessages || message.sender?._id === user?._id)) {
       socketEvents.deleteGroupMessage(message._id);
       setShowMessageMenu(null);
       return;
@@ -485,7 +565,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
   const handleSaveEdit = async () => {
     if (!editText.trim() || !editingMessage) return;
     socketEvents.editMessage(
-      { conversationId: conversation._id, messageId: editingMessage, content: editText },
+      { conversationId: conversation?._id, messageId: editingMessage, content: editText },
       (response) => {
         if (response?.error) {
           console.error('Edit failed:', response.error);
@@ -516,7 +596,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
   const handleDeleteForMe = (message) => {
     socketEvents.deleteForMe(
-      { conversationId: conversation._id, messageId: message._id },
+      { conversationId: conversation?._id, messageId: message._id },
       (response) => {
         if (response?.ok) {
           useChatStore.getState().softDeleteMessage(message._id);
@@ -528,7 +608,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
   const handleDeleteForEveryone = (message) => {
     socketEvents.deleteForEveryone(
-      { conversationId: conversation._id, messageId: message._id },
+      { conversationId: conversation?._id, messageId: message._id },
       (response) => {
         if (response?.error) {
           console.error('Delete failed:', response.error);
@@ -541,7 +621,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
   const handleTogglePin = (message) => {
     socketEvents.togglePin(
-      { conversationId: conversation._id, messageId: message._id },
+      { conversationId: conversation?._id, messageId: message._id },
       (response) => {
         if (response?.ok) {
           useChatStore.getState().togglePinInList(message._id, response.isPinned);
@@ -549,6 +629,14 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
       }
     );
     setShowMessageMenu(null);
+  };
+
+  const handleUpdateGroupInfo = () => {
+    socketEvents.updateGroupInfo(conversation?.groupId, groupEdit, (response) => {
+      if (response?.conversation) {
+        useChatStore.getState().updateActiveConversation(response.conversation);
+      }
+    });
   };
 
   const handleOpenForward = (message) => {
@@ -593,7 +681,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
   const handleReactWithEmoji = (message, emoji) => {
     socketEvents.reactToMessage(
-      { conversationId: conversation._id, messageId: message._id, emoji },
+      { conversationId: conversation?._id, messageId: message._id, emoji },
       (response) => {
         if (response?.ok && response?.reactions) {
           useChatStore.getState().updateReactions(message._id, response.reactions);
@@ -608,9 +696,35 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const handleOpenMenu = (messageId) => {
+  const handleOpenMenu = useCallback((messageId) => {
     setShowMessageMenu(prev => prev === messageId ? null : messageId);
-  };
+  }, []);
+
+  // ─── MOBILE LONG-PRESS CONTEXT MENU ──────────────────────────────────
+  const longPressTimers = useRef({});
+
+  const handleTouchStart = useCallback((messageId) => {
+    longPressTimers.current[messageId] = setTimeout(() => {
+      handleOpenMenu(messageId);
+      longPressTimers.current[messageId] = null;
+    }, 400);
+  }, [handleOpenMenu]);
+
+  const handleTouchEnd = useCallback((messageId) => {
+    const timer = longPressTimers.current[messageId];
+    if (timer) {
+      clearTimeout(timer);
+      longPressTimers.current[messageId] = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((messageId) => {
+    const timer = longPressTimers.current[messageId];
+    if (timer) {
+      clearTimeout(timer);
+      longPressTimers.current[messageId] = null;
+    }
+  }, []);
 
   const formatMessageTime = (date) => {
     const d = new Date(date);
@@ -621,6 +735,8 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
     }
     return format(d, 'MMM d, HH:mm');
   };
+
+  if (!conversation) return null;
 
   const typingUsers = useChatStore(state => state.typingUsers[conversation?._id]);
 
@@ -654,7 +770,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
           ) : (
           <>
           <div className={`avatar ${otherUser?.isOnline ? 'online' : ''}`}>
-            {conversation.type === 'group' && conversation.avatar ? (
+            {conversation?.type === 'group' && conversation?.avatar ? (
               <img src={conversation.avatar} alt={conversation.name} />
             ) : otherUser?.avatar ? (
               <img src={otherUser.avatar} alt={otherUser.username} />
@@ -664,18 +780,20 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
           </div>
           <div>
             <div className="chat-header-title">
-              {conversation.type === 'direct'
+              {conversation?.type === 'direct'
                 ? otherUser?.displayName || otherUser?.username
-                : conversation.name
+                : conversation?.name
               }
             </div>
             <div className="chat-header-status">
-              {otherUser?.isOnline ? (
+              {isTyping ? (
+                <span className="typing-indicator">typing<span className="typing-dots"><span>.</span><span>.</span><span>.</span></span></span>
+              ) : otherUser?.isOnline ? (
                 <span><span className="online-dot"></span> Online</span>
               ) : otherUser?.lastSeen ? (
                 <span>Last seen {formatDistanceToNow(new Date(otherUser.lastSeen))} ago</span>
-              ) : conversation.type === 'group' ? (
-                <span>{conversation.memberCount || conversation.participants?.length || 0} members</span>
+              ) : conversation?.type === 'group' ? (
+                <span>{conversation?.memberCount || conversation?.participants?.length || 0} members</span>
               ) : null}
             </div>
           </div>
@@ -690,7 +808,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
                 <FiZap />
               </button>
             </div>
-          ) : conversation.type === 'group' ? (
+          ) : conversation?.type === 'group' ? (
             <>
               <button className="header-action-btn" disabled={!canManageGroupMessages} onClick={async () => {
                 const callId = `gcall-${Date.now().toString(36)}`;
@@ -698,7 +816,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
                   socketEvents.createRoom(async (res) => {
                     const roomId = res?.roomId;
                     if (!roomId) return console.error('Failed to create call room');
-                    socketEvents.startConversationCall(conversation._id, roomId, callId, 'audio');
+                    socketEvents.startConversationCall(conversation?._id, roomId, callId, 'audio');
                     await joinRoom(roomId, 'audio');
                   });
                 } catch (e) { console.error('Start group call failed', e); }
@@ -711,7 +829,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
                   socketEvents.createRoom(async (res) => {
                     const roomId = res?.roomId;
                     if (!roomId) return console.error('Failed to create call room');
-                    socketEvents.startConversationCall(conversation._id, roomId, callId, 'video');
+                    socketEvents.startConversationCall(conversation?._id, roomId, callId, 'video');
                     await joinRoom(roomId, 'video');
                   });
                 } catch (e) { console.error('Start group call failed', e); }
@@ -721,10 +839,10 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
             </>
           ) : (
             <>
-              <button className="header-action-btn" onClick={() => initiateCall(otherUser?._id, 'audio', conversation._id)}>
+              <button className="header-action-btn" onClick={() => initiateCall(otherUser?._id, 'audio', conversation?._id)}>
                 <FiPhone />
               </button>
-              <button className="header-action-btn" onClick={() => initiateCall(otherUser?._id, 'video', conversation._id)}>
+              <button className="header-action-btn" onClick={() => initiateCall(otherUser?._id, 'video', conversation?._id)}>
                 <FiVideo />
               </button>
             </>
@@ -735,7 +853,7 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
           <button className="header-action-btn" onClick={() => { setShowMessageSearch(true); setTimeout(() => searchInputRef.current?.focus(), 100); }} title="Search messages">
             <FiSearch />
           </button>
-          <button className="header-action-btn" onClick={() => conversation.type === 'group' && setShowGroupSettings(true)}>
+          <button className="header-action-btn" onClick={() => conversation?.type === 'group' && setShowGroupSettings(true)}>
             <FiMoreVertical />
           </button>
         </div>
@@ -794,20 +912,20 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
       )}
 
       <AnimatePresence>
-        {showGroupSettings && conversation.type === 'group' && (
+        {showGroupSettings && conversation?.type === 'group' && (
           <motion.div className="group-modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={() => setShowGroupSettings(false)}>
             <motion.div className="group-settings-modal" initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.97 }} onMouseDown={(event) => event.stopPropagation()}>
               <div className="group-modal-header">
                 <div>
-                  <h2>{conversation.name}</h2>
-                  <p>{conversation.memberCount || conversation.members?.length || 0} members</p>
+                  <h2>{conversation?.name}</h2>
+                  <p>{conversation?.memberCount || conversation?.members?.length || 0} members</p>
                 </div>
                 <button className="group-icon-btn" onClick={() => setShowGroupSettings(false)}>x</button>
               </div>
 
               <div className="group-settings-body">
                 <div className="group-settings-avatar">
-                  {conversation.avatar ? <img src={conversation.avatar} alt={conversation.name} /> : (conversation.name || 'G')[0].toUpperCase()}
+                  {conversation?.avatar ? <img src={conversation.avatar} alt={conversation?.name} /> : (conversation?.name || 'G')[0].toUpperCase()}
                 </div>
 
                 {canAdminGroup && (
@@ -916,8 +1034,8 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
         )}
 
         {(messages || []).map((message, index) => {
-          const isOutgoing = message.sender._id === user?._id || message.sender === 'current-user';
-          const senderRole = getGroupMemberRole(message.sender?._id);
+          const isOutgoing = message.sender?._id === user?._id || message.sender === 'current-user';
+          const senderRole = getGroupMemberRole(message.sender?._id || message.sender);
           const showDate = index === 0 ||
             new Date(message.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString();
           const isEditing = editingMessage === message._id;
@@ -934,6 +1052,9 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
               <div
                 className={`message ${isOutgoing ? 'outgoing' : ''} ${message.isPinned ? 'pinned' : ''} ${isHighlighted ? 'highlighted' : ''}`}
                 onContextMenu={(e) => { e.preventDefault(); handleOpenMenu(message._id); }}
+                onTouchStart={() => handleTouchStart(message._id)}
+                onTouchEnd={() => handleTouchEnd(message._id)}
+                onTouchMove={() => handleTouchMove(message._id)}
               >
                 <div className={`avatar`} style={{ width: '36px', height: '36px', fontSize: '14px' }}>
                   {message.sender?.avatar ? (
@@ -997,22 +1118,57 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
                     </div>
                   ) : (
                     <>
-                      {message.type === 'image' && message.media?.url && (
-                        <img src={message.media.url} alt="Shared" className="message-image" />
+                      {message.isUploading && (
+                        <div className="message-upload-skeleton">
+                          <div className="upload-skeleton-preview" />
+                          <div className="upload-skeleton-info">
+                            <div className="upload-skeleton-filename">{message.fileName || 'Uploading...'}</div>
+                            <div className="upload-skeleton-progress">
+                              <div className="upload-skeleton-bar" />
+                            </div>
+                          </div>
+                        </div>
                       )}
 
-                      {message.type === 'video' && message.media?.url && (
-                        <video src={message.media.url} className="message-image" controls />
+                      {!message.isUploading && message.type === 'image' && message.media?.url && (
+                        <div className="message-media-wrapper">
+                          <img
+                            src={message.media.url}
+                            alt={message.media?.filename || 'Shared image'}
+                            className="message-image"
+                            loading="lazy"
+                          />
+                        </div>
                       )}
 
-                      {message.type === 'audio' && message.media?.url && (
+                      {!message.isUploading && message.type === 'video' && message.media?.url && (
+                        <div className="message-media-wrapper">
+                          <video src={message.media.url} className="message-image" controls />
+                        </div>
+                      )}
+
+                      {!message.isUploading && message.type === 'audio' && message.media?.url && (
                         <audio src={message.media.url} controls style={{ width: '200px', marginTop: '8px' }} />
                       )}
 
-                      {message.type === 'document' && message.media?.url && (
+                      {!message.isUploading && message.type === 'document' && message.media?.url && (
                         <div className="message-document">
-                          <FiFile style={{ fontSize: '24px' }} />
-                          <span>{message.media.filename}</span>
+                          <FiFile style={{ fontSize: '24px', flexShrink: 0 }} />
+                          <div className="message-document-info">
+                            <span className="message-document-name">{message.media.filename}</span>
+                            <span className="message-document-size">
+                              {message.media.size ? (message.media.size / 1024).toFixed(1) + ' KB' : ''}
+                            </span>
+                          </div>
+                          <a
+                            href={message.media.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="message-download-btn"
+                            title="Download"
+                          >
+                            Download
+                          </a>
                         </div>
                       )}
 
@@ -1090,6 +1246,35 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
 
                           <button className="menu-item" onClick={() => handleCopyMessage(message)}>
                             <FiMessageCircle /> Copy
+                          </button>
+
+                          <button className="menu-item" onClick={async () => {
+                            setShowMessageMenu(null);
+                            try {
+                              const res = await aiAPI.translate(message.content || '', 'en');
+                              const translated = res.data.translatedText;
+                              if (translated) {
+                                // Show translation as a temporary message or alert
+                                useChatStore.getState().addMessage({
+                                  _id: `translated_${Date.now()}`,
+                                  conversationId: conversation?._id,
+                                  sender: { _id: 'translation-bot', username: 'Translation', displayName: 'Translation' },
+                                  content: `🌐 Translated: ${translated}`,
+                                  type: 'text',
+                                  status: 'sent',
+                                  createdAt: new Date().toISOString(),
+                                  isTransient: true
+                                });
+                                // Auto-remove after 8 seconds
+                                setTimeout(() => {
+                                  useChatStore.getState().removeMessage(`translated_${Date.now()}`);
+                                }, 8000);
+                              }
+                            } catch (err) {
+                              console.error('Translation failed:', err);
+                            }
+                          }}>
+                            <FiMessageCircle /> Translate
                           </button>
 
                           <button className="menu-item" onClick={() => handleOpenForward(message)}>
@@ -1241,25 +1426,120 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
           >
             <FiPaperclip />
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
         </div>
 
         <div className={`message-input-container ${isAIMode ? 'ai-mode' : ''}`}>
-          <input
-            ref={inputRef}
-            type="text"
-            className="message-input"
-            placeholder={isAIMode ? 'Describe an image to generate...' : 'Type a message...'}
-            value={messageText}
-            onChange={(e) => {
-              setMessageText(e.target.value);
-              socketEvents.sendTyping(conversation._id, e.target.value.length > 0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                handleSendMessage();
-              }
-            }}
-          />
+          <div style={{ position: 'relative', flex: 1 }}>
+            {mentionSuggestions.length > 0 && (
+              <div className="mention-dropdown">
+                {mentionSuggestions.map((member, i) => (
+                  <div
+                    key={member.user?._id || i}
+                    className={`mention-option ${i === mentionIndexRef.current ? 'active' : ''}`}
+                    onMouseDown={() => {
+                      const name = member.user?.username || member.user?.displayName || 'User';
+                      const atIdx = messageText.lastIndexOf('@', mentionQuery._index);
+                      const before = messageText.slice(0, atIdx);
+                      const after = messageText.slice(atIdx + mentionQuery.length + 1);
+                      setMessageText(`${before}@${name} ${after}`);
+                      setMentionSuggestions([]);
+                      setMentionQuery('');
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    <span className="mention-avatar">
+                      {member.user?.avatar ? <img src={member.user.avatar} alt="" /> : (member.user?.displayName || member.user?.username || '?')[0]}
+                    </span>
+                    <span className="mention-name">{member.user?.displayName || member.user?.username}</span>
+                    <span className="mention-role">{member.role}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              ref={inputRef}
+              type="text"
+              className="message-input"
+              placeholder={isAIMode ? 'Describe an image to generate...' : 'Type a message...'}
+              value={messageText}
+              onChange={(e) => {
+                const val = e.target.value;
+                setMessageText(val);
+
+                // Mention autocomplete detection
+                if (conversation?.type === 'group') {
+                  const lastAtIndex = val.lastIndexOf('@');
+                  if (lastAtIndex !== -1) {
+                    const afterAtIndex = val.slice(lastAtIndex + 1);
+                    // Only trigger if there's no space after @
+                    if (afterAtIndex.length > 0 && !afterAtIndex.includes(' ')) {
+                      const members = conversation?.groupMembers || conversation?.participants?.map(p => ({ user: p })) || [];
+                      const filtered = members.filter(m => {
+                        const name = (m.user?.username || m.user?.displayName || '').toLowerCase();
+                        return name.startsWith(afterAtIndex.toLowerCase());
+                      });
+                      setMentionSuggestions(filtered.slice(0, 8));
+                      setMentionQuery({ text: afterAtIndex, _index: lastAtIndex, length: afterAtIndex.length });
+                      mentionIndexRef.current = 0;
+                    } else {
+                      setMentionSuggestions([]);
+                      setMentionQuery('');
+                    }
+                  } else {
+                    setMentionSuggestions([]);
+                    setMentionQuery('');
+                  }
+                }
+
+                const socket = getSocket();
+                if (socket && conversation?._id) {
+                  socket.emit('typing', conversation._id);
+                  clearTimeout(typingTimeoutRef.current);
+                  typingTimeoutRef.current = setTimeout(() => {
+                    socket.emit('stop-typing', conversation._id);
+                  }, 2000);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (mentionSuggestions.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    mentionIndexRef.current = (mentionIndexRef.current + 1) % mentionSuggestions.length;
+                    return;
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    mentionIndexRef.current = (mentionIndexRef.current - 1 + mentionSuggestions.length) % mentionSuggestions.length;
+                    return;
+                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    const member = mentionSuggestions[mentionIndexRef.current];
+                    if (member) {
+                      const name = member.user?.username || member.user?.displayName || 'User';
+                      const atIdx = messageText.lastIndexOf('@', mentionQuery._index);
+                      const before = messageText.slice(0, atIdx);
+                      const after = messageText.slice(atIdx + mentionQuery.length + 1);
+                      setMessageText(`${before}@${name} ${after}`);
+                      setMentionSuggestions([]);
+                      setMentionQuery('');
+                    }
+                    return;
+                  }
+                }
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+          </div>
           <div style={{ position: 'relative' }}>
             <button
               className={`emoji-trigger-btn ${showEmojiPicker ? 'active' : ''}`}
@@ -1545,4 +1825,6 @@ export default function ChatArea({ conversation, user, onBack, isMobile, isAICha
       </AnimatePresence>
     </>
   );
-}
+});
+
+export default ChatArea;

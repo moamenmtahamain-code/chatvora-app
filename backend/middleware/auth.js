@@ -30,10 +30,18 @@ const auth = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+  const allowedRoles = ['super_admin', 'admin', 'moderator'];
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({ message: 'Admin access required' });
   }
   next();
 };
 
-module.exports = { auth, adminOnly };
+const superAdminOnly = (req, res, next) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Super admin access required' });
+  }
+  next();
+};
+
+module.exports = { auth, adminOnly, superAdminOnly };

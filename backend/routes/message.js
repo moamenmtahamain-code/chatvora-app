@@ -9,6 +9,53 @@ const logger = require('../utils/logger');
 const { toObjectId, getDb } = require('../database/database');
 
 const User = require('../models/User');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const cloudinaryConfig = require('../config/cloudinary');
+
+// ─── MULTER: Cloudinary if configured, otherwise local disk ────────────────
+const fileFilter = (req, file, cb) => {
+  const allowedMimes = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'video/mp4', 'video/webm', 'video/quicktime',
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp3',
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+  ];
+  cb(null, allowedMimes.includes(file.mimetype));
+};
+
+let uploadMiddleware;
+if (cloudinaryConfig.isConfigured) {
+  uploadMiddleware = multer({
+    storage: cloudinaryConfig.storage,
+    fileFilter,
+    limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024 },
+  });
+} else {
+  const diskStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const type = file.mimetype.split('/')[0];
+      const folder = type === 'image' ? 'images' : type === 'video' ? 'videos' : type === 'audio' ? 'audio' : 'documents';
+      const dir = path.join(process.env.UPLOAD_PATH || './uploads', folder);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${uuidv4()}${path.extname(file.originalname)}`);
+    },
+  });
+  uploadMiddleware = multer({
+    storage: diskStorage,
+    fileFilter,
+    limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024 },
+  });
+}
 
 const populateMessageData = async (message) => {
   if (!message) return null;
@@ -94,13 +141,20 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
+    // Set disappearing message timer if the conversation has one
+    let disappearAt = null;
+    if (conversation.disappearTimer && conversation.disappearTimer > 0) {
+      disappearAt = new Date(Date.now() + conversation.disappearTimer);
+    }
+
     const message = await Message.insertOne({
       conversationId,
       sender: req.user._id,
       type: type || 'text',
       content,
       media,
-      replyTo
+      replyTo,
+      disappearAt
     });
 
     await Conversation.findByIdAndUpdate(conversationId, {
@@ -340,6 +394,94 @@ router.post('/:id/forward', auth, async (req, res) => {
   } catch (error) {
     logger.error('Forward error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── UPLOAD FILE + CREATE MESSAGE (single call) ────────────────────────────
+router.post('/upload', auth, uploadMiddleware.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { conversationId, replyTo } = req.body;
+
+    if (!conversationId) {
+      return res.status(400).json({ message: 'conversationId is required' });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants.some(
+      p => p.toString() === req.user._id.toString()
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Build media object from the uploaded file
+    let fileUrl, mimeType, fileSize, origFilename;
+    if (cloudinaryConfig.isConfigured) {
+      fileUrl = req.file.path;
+      mimeType = req.file.mimetype;
+      fileSize = req.file.size;
+      origFilename = req.file.originalname;
+    } else {
+      const type = req.file.mimetype.split('/')[0];
+      const folder = type === 'image' ? 'images' : type === 'video' ? 'videos' : type === 'audio' ? 'audio' : 'documents';
+      fileUrl = `/uploads/${folder}/${req.file.filename}`;
+      mimeType = req.file.mimetype;
+      fileSize = req.file.size;
+      origFilename = req.file.originalname;
+    }
+
+    const fileType = mimeType.split('/')[0];
+    const msgType = fileType === 'image' ? 'image'
+      : fileType === 'video' ? 'video'
+        : fileType === 'audio' ? 'audio' : 'document';
+
+    const media = {
+      url: fileUrl,
+      filename: origFilename,
+      size: fileSize,
+      mimeType,
+      type: fileType,
+    };
+
+    // Create the message
+    const message = await Message.insertOne({
+      conversationId,
+      sender: req.user._id,
+      type: msgType,
+      content: '',
+      media,
+      replyTo: replyTo || null,
+    });
+
+    // Update conversation's lastMessage
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: message._id,
+      lastMessageAt: new Date(),
+    });
+
+    // Enrich with sender data
+    const enriched = await populateMessageData(message);
+
+    // Broadcast via Socket.IO for real-time delivery
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conversation:${conversationId}`).emit('message:new', {
+        message: enriched,
+      });
+    }
+
+    res.status(201).json(enriched);
+  } catch (error) {
+    logger.error('Message upload error:', error);
+    res.status(500).json({ message: 'Upload failed' });
   }
 });
 

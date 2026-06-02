@@ -2,10 +2,12 @@ import axios from 'axios';
 import { initSocket } from './socket';
 
 const getApiUrl = () => {
+  // Production: use the deployed backend URL from env
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
+  // Electron dev or local: use same hostname as frontend + port 5000
   if (typeof window !== 'undefined') {
     return `${window.location.protocol}//${window.location.hostname}:5000/api`;
   }
@@ -87,7 +89,9 @@ export const userAPI = {
 export const groupAPI = {
   getOne: (id) => api.get(`/groups/${id}`),
   getMembers: (id) => api.get(`/groups/${id}/members?limit=200`),
-  update: (id, data) => api.put(`/groups/${id}`, data)
+  update: (id, data) => api.put(`/groups/${id}`, data),
+  kick: (id, userId) => api.post(`/groups/${id}/kick`, { userId }),
+  updateRole: (id, userId, role) => api.put(`/groups/${id}/role`, { userId, role })
 };
 
 export const conversationAPI = {
@@ -100,7 +104,8 @@ export const conversationAPI = {
   mute: (id) => api.put(`/conversations/${id}/mute`),
   leave: (id) => api.put(`/conversations/${id}/leave`),
   addParticipants: (id, userIds) => api.put(`/conversations/${id}/add`, { userIds }),
-  wallpaper: (id, data) => api.put(`/conversations/${id}/wallpaper`, data)
+  wallpaper: (id, data) => api.put(`/conversations/${id}/wallpaper`, data),
+  setDisappearTimer: (id, timer) => api.put(`/conversations/${id}/disappear-timer`, { timer })
 };
 
 export const messageAPI = {
@@ -113,7 +118,10 @@ export const messageAPI = {
   pin: (id) => api.put(`/messages/${id}/pin`),
   star: (id) => api.put(`/messages/${id}/star`),
   search: (conversationId, query) => api.get(`/messages/search/${conversationId}?q=${query}`),
-  forward: (id, conversationIds) => api.post(`/messages/${id}/forward`, { conversationIds })
+  forward: (id, conversationIds) => api.post(`/messages/${id}/forward`, { conversationIds }),
+  uploadAndSend: (formData) => api.post('/messages/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 export const uploadAPI = {
@@ -177,14 +185,36 @@ export const aiAPI = {
   generateImage: (data) => api.post('/ai/generate-image', data),
   getHistory: () => api.get('/ai/history'),
   saveGeneration: (data) => api.post('/ai/save', data),
-  deleteGeneration: (id) => api.delete(`/ai/history/${id}`)
+  deleteGeneration: (id) => api.delete(`/ai/history/${id}`),
+  translate: (text, targetLanguage = 'en') => api.post('/ai/translate', { text, targetLanguage })
 };
 
 export const adminAPI = {
   getStats: () => api.get('/admin/stats'),
-  getUsers: (page, search) => api.get(`/admin/users?page=${page}&search=${search || ''}`),
+  getUsers: (params) => {
+    const query = new URLSearchParams({ page: params?.page || 1, limit: params?.limit || 20 });
+    if (params?.search) query.set('search', params.search);
+    if (params?.role) query.set('role', params.role);
+    if (params?.status) query.set('status', params.status);
+    if (params?.sort) query.set('sort', params.sort);
+    return api.get(`/admin/users?${query.toString()}`);
+  },
+  getUser: (id) => api.get(`/admin/users/${id}`),
+  createUser: (data) => api.post('/admin/users', data),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
   updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
-  deleteUser: (id) => api.delete(`/admin/users/${id}`)
+  updateUserStatus: (id, status, reason) => api.put(`/admin/users/${id}/status`, { status, reason }),
+  resetUserPassword: (id, newPassword) => api.put(`/admin/users/${id}/reset-password`, { newPassword }),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  bulkAction: (userIds, action, data) => api.post('/admin/users/bulk', { userIds, action, data }),
+  getNewUsers: (days) => api.get(`/admin/new-users?days=${days || 7}`),
+  getMessages: (params) => {
+    const query = new URLSearchParams({ page: params?.page || 1, limit: params?.limit || 50 });
+    if (params?.userId) query.set('userId', params.userId);
+    return api.get(`/admin/messages?${query.toString()}`);
+  },
+  getConversations: (page) => api.get(`/admin/conversations?page=${page || 1}`),
+  broadcast: (message, type) => api.post('/admin/broadcast', { message, type })
 };
 
 export default api;

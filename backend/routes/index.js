@@ -12,6 +12,7 @@ const notificationRoutes = require('./notification');
 const adminRoutes = require('./admin');
 const groupRoutes = require('./group');
 const aiRoutes = require('./ai');
+const leaderboardRoutes = require('./leaderboard');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -24,5 +25,6 @@ router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/groups', groupRoutes);
 router.use('/ai', aiRoutes);
+router.use('/leaderboard', leaderboardRoutes);
 
 module.exports = router;

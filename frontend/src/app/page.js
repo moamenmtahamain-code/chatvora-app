@@ -91,7 +91,7 @@ function LandingPage() {
           }}>
             <FiZap />
           </div>
-          <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>ChatWave</span>
+          <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>Chatvora</span>
         </div>
 
         <div style={{ display: 'flex', gap: 32, alignItems: 'center', display: 'none', '@media (min-width: 768px)': { display: 'flex' } }}>
@@ -344,7 +344,7 @@ function LandingPage() {
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>ChatWave — Premium Messaging</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Chatvora — Modern Real-Time Messaging</span>
           </div>
 
           {/* Mock chat UI */}
@@ -467,7 +467,7 @@ function LandingPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'white', fontSize: 14, boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
               }}><FiZap /></div>
-              <span style={{ fontWeight: 700, fontSize: 17 }}>ChatWave</span>
+              <span style={{ fontWeight: 700, fontSize: 17 }}>Chatvora</span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6 }}>
               Premium real-time messaging platform with AI, calls, stories, and end-to-end encryption.
@@ -492,7 +492,7 @@ function LandingPage() {
           </div>
         </div>
         <div style={{ maxWidth: 1000, margin: '40px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>&copy; {new Date().getFullYear()} ChatWave. All rights reserved.</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>&copy; {new Date().getFullYear()} Chatvora. All rights reserved.</span>
           <div style={{ display: 'flex', gap: 16, color: 'var(--text-muted)' }}>
             <FiHeart size={16} style={{ cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.target.style.color = '#ef4444'} onMouseLeave={e => e.target.style.color = 'var(--text-muted)'} />
             <FiGithub size={16} style={{ cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.target.style.color = 'var(--text-dark)'} onMouseLeave={e => e.target.style.color = 'var(--text-muted)'} />

@@ -69,7 +69,7 @@ export const useSettingsStore = create(
       }),
     }),
     {
-      name: 'chatwave-settings',
+      name: 'chatvora-settings',
       partialize: (state) => {
         const { setTheme, toggleTheme, setCompactMode, setMessageFontSize, setNotificationsEnabled, setNotifyMessages, setNotifyCalls, setNotifyGroups, setNotifySound, setNotifyPreview, setPreferredCallType, setReadReceipts, setShowOnlineStatus, setLastSeen, setEnterToSend, setShowTypingIndicators, resetSettings, ...persisted } = state;
         return persisted;

@@ -207,4 +207,54 @@ router.delete('/history/:id', auth, async (req, res) => {
   }
 });
 
+// ─── TRANSLATE MESSAGE ─────────────────────────────────────────────────────
+router.post('/translate', auth, async (req, res) => {
+  try {
+    const { text, targetLanguage = 'en' } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: 'Text is required' });
+    }
+
+    // Try LibreTranslate (free, no key required for small usage)
+    try {
+      const response = await fetch('https://libretranslate.com/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: text,
+          source: 'auto',
+          target: targetLanguage,
+          format: 'text'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.translatedText) {
+          return res.json({ translatedText: data.translatedText, provider: 'libre' });
+        }
+      }
+    } catch (_) {
+      // Fallback to Google's unofficial translate API
+      try {
+        const langResponse = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(text)}`
+        );
+        if (langResponse.ok) {
+          const langData = await langResponse.json();
+          const translated = langData[0]?.map(s => s[0]).filter(Boolean).join('');
+          if (translated) {
+            return res.json({ translatedText: translated, provider: 'google' });
+          }
+        }
+      } catch (_2) {}
+    }
+
+    return res.status(503).json({ message: 'Translation service unavailable' });
+  } catch (error) {
+    logger.error('Translation error:', error);
+    res.status(500).json({ message: 'Translation failed' });
+  }
+});
+
 module.exports = router;

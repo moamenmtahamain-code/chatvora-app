@@ -264,4 +264,64 @@ const listMembers = async (req, res) => {
   }
 };
 
-module.exports = { createGroup, getGroup, updateGroup, createInvite, joinByInvite, listMembers };
+const kickMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+    if (!toObjectId(id) || !userId) return res.status(400).json({ message: 'Invalid group or user' });
+
+    const caller = await GroupMember.findOne({ group: toObjectId(id), user: toObjectId(req.user._id) });
+    if (!caller) return res.status(403).json({ message: 'Not a member' });
+    if (caller.role !== 'owner' && caller.role !== 'admin') return res.status(403).json({ message: 'Insufficient permissions' });
+
+    const target = await GroupMember.findOne({ group: toObjectId(id), user: toObjectId(userId) });
+    if (!target) return res.status(404).json({ message: 'User not in group' });
+    if (target.role === 'owner') return res.status(403).json({ message: 'Cannot kick the owner' });
+    if (caller.role === 'admin' && (target.role === 'admin' || target.role === 'moderator')) {
+      return res.status(403).json({ message: 'Admins cannot kick other admins or moderators' });
+    }
+
+    await GroupMember.collection().deleteOne({ group: toObjectId(id), user: toObjectId(userId) });
+    await Group.findByIdAndUpdate(id, { $inc: { memberCount: -1 } });
+
+    const group = await Group.findById(id);
+    if (group && group.conversation) {
+      await Conversation.findByIdAndUpdate(group.conversation, {
+        $pull: { participants: toObjectId(userId) }
+      });
+    }
+
+    res.json({ message: 'Member removed' });
+  } catch (error) {
+    logger.error('Kick member error:', error);
+    res.status(500).json({ message: 'Failed to remove member' });
+  }
+};
+
+const updateMemberRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, role } = req.body;
+    if (!toObjectId(id) || !userId || !role) return res.status(400).json({ message: 'Invalid data' });
+    if (!['admin', 'moderator', 'member'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
+
+    const caller = await GroupMember.findOne({ group: toObjectId(id), user: toObjectId(req.user._id) });
+    if (!caller || caller.role !== 'owner') return res.status(403).json({ message: 'Only the owner can change roles' });
+
+    const target = await GroupMember.findOne({ group: toObjectId(id), user: toObjectId(userId) });
+    if (!target) return res.status(404).json({ message: 'User not in group' });
+    if (target.role === 'owner') return res.status(403).json({ message: 'Cannot change owner role' });
+
+    await GroupMember.collection().updateOne(
+      { group: toObjectId(id), user: toObjectId(userId) },
+      { $set: { role } }
+    );
+
+    res.json({ message: 'Role updated', role });
+  } catch (error) {
+    logger.error('Update role error:', error);
+    res.status(500).json({ message: 'Failed to update role' });
+  }
+};
+
+module.exports = { createGroup, getGroup, updateGroup, createInvite, joinByInvite, listMembers, kickMember, updateMemberRole };

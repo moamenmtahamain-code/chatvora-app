@@ -1,2 +1,8 @@
-node_modules/ git rm -r --cached . git add . git commit -m Initial commit git branch -M main git remote add origin https://github.com/moamentahamain-code/Chatvora.git git push -u origin main
 node_modules/
+.next/
+out/
+release/
+*.log
+.env
+.env.local
+uploads/

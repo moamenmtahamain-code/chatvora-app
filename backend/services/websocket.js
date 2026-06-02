@@ -188,6 +188,12 @@ function setupWebSocket(io) {
           }
         }
 
+        // Set disappearing message timer if the conversation has one
+        let disappearAt = null;
+        if (conversation.disappearTimer && conversation.disappearTimer > 0) {
+          disappearAt = new Date(Date.now() + conversation.disappearTimer);
+        }
+
         // Save to DB
         const message = await Message.insertOne({
           conversationId,
@@ -197,7 +203,8 @@ function setupWebSocket(io) {
           clientMessageId,
           media,
           replyTo,
-          status: 'sent'
+          status: 'sent',
+          disappearAt
         });
 
         await Conversation.findByIdAndUpdate(conversationId, {
@@ -253,6 +260,17 @@ function setupWebSocket(io) {
         userId: uid,
         isTyping: Boolean(isTyping)
       });
+    });
+
+    // ─── TYPING INDICATOR (separate events with debounce) ───────────────
+    socket.on('typing', (room) => {
+      if (!room) return;
+      socket.to(`conversation:${room}`).emit('user-typing', room);
+    });
+
+    socket.on('stop-typing', (room) => {
+      if (!room) return;
+      socket.to(`conversation:${room}`).emit('user-stop-typing', room);
     });
 
     // ─── MARK READ ──────────────────────────────────────────────────────

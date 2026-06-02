@@ -74,6 +74,22 @@ router.post('/login', authLimiter, [
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Check if user is suspended or held
+    if (user.status === 'suspended') {
+      return res.status(403).json({
+        message: 'Your account has been suspended',
+        code: 'ACCOUNT_SUSPENDED',
+        reason: user.statusReason || 'No reason provided'
+      });
+    }
+    if (user.status === 'held') {
+      return res.status(403).json({
+        message: 'Your account is on hold. Please contact support.',
+        code: 'ACCOUNT_HELD',
+        reason: user.statusReason || 'No reason provided'
+      });
+    }
+
     await User.findByIdAndUpdate(user._id, {
       isOnline: true,
       lastSeen: new Date()

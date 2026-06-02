@@ -12,13 +12,13 @@ async function ensureDatabase() {
   try {
     await client.connect();
     const res = await client.query(
-      "SELECT 1 FROM pg_database WHERE datname = 'chatwave_db'"
+      "SELECT 1 FROM pg_database WHERE datname = 'chatvora_db'"
     );
     if (res.rowCount === 0) {
-      await client.query('CREATE DATABASE chatwave_db');
-      console.log('Database "chatwave_db" created.');
+      await client.query('CREATE DATABASE chatvora_db');
+      console.log('Database "chatvora_db" created.');
     } else {
-      console.log('Database "chatwave_db" already exists.');
+      console.log('Database "chatvora_db" already exists.');
     }
   } catch (err) {
     console.error('Error ensuring database exists:', err);
@@ -28,6 +28,6 @@ async function ensureDatabase() {
   }
 }
 
-const pool = new Pool({ ...dbConfig, database: 'chatwave_db' });
+const pool = new Pool({ ...dbConfig, database: 'chatvora_db' });
 
 module.exports = { pool, ensureDatabase, query: (text, params) => pool.query(text, params) };

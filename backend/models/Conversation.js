@@ -32,6 +32,7 @@ const insertOne = async (doc) => {
     isArchived: doc.isArchived || {},
     isPinned: doc.isPinned || {},
     isMuted: doc.isMuted || {},
+    disappearTimer: doc.disappearTimer || 0,
     type: doc.type || 'direct',
     name: doc.name || null,
     createdAt: now,

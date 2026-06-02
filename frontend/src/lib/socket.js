@@ -58,9 +58,11 @@ export function initSocket(token) {
   }
 
   const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
-    (typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
-      : 'http://127.0.0.1:5000');
+    (process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
+      : typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.hostname}:5000`
+        : 'http://127.0.0.1:5000');
 
   console.log('[socket] Connecting to', SOCKET_URL);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiPlus, FiPhone, FiSettings, FiUsers, FiStar, FiArchive, FiX, FiPhoneIncoming, FiPhoneMissed, FiVideo, FiZap } from 'react-icons/fi';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -8,9 +8,11 @@ import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import { userAPI, callAPI } from '../lib/api';
 import { AI_BOT, AI_CONVERSATION } from '../lib/aiBot';
+import useCallStore from '../stores/callStore';
 import CreateGroupModal from './CreateGroupModal';
+import DownloadForDesktop from './DownloadForDesktop';
 
-export default function Sidebar({ user, conversations, onSelectConversation, onCloseSidebar, isMobile, onSelectAIChat, onOpenProfile, onViewStory, onOpenSettings }) {
+const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversation, onCloseSidebar, isMobile, onSelectAIChat, onOpenProfile, onViewStory, onOpenSettings }) {
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -18,6 +20,7 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const { logout, updateProfile } = useAuthStore();
   const { activeConversation, setActiveConversation, createConversation } = useChatStore();
+  const { initiateCall } = useCallStore();
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
@@ -37,14 +40,14 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
     }
   }, [searchQuery]);
 
-  const handleSelectConversation = async (conv) => {
+  const handleSelectConversation = useCallback(async (conv) => {
     setActiveConversation(conv);
     if (onSelectConversation) {
       onSelectConversation(conv);
     }
-  };
+  }, [onSelectConversation, setActiveConversation]);
 
-  const handleSelectUser = async (userResult) => {
+  const handleSelectUser = useCallback(async (userResult) => {
     const newConv = await createConversation(userResult._id);
     if (newConv) {
       setActiveConversation(newConv);
@@ -54,7 +57,7 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
     }
     setSearchQuery('');
     setSearchResults([]);
-  };
+  }, [createConversation, setActiveConversation, onSelectConversation]);
 
   const getConversationName = (conv) => {
     if (conv.type === 'group' || conv.type === 'channel') {
@@ -90,12 +93,12 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
     return otherUser?.isOnline || false;
   };
 
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = useMemo(() => conversations.filter(conv => {
     const name = getConversationName(conv).toLowerCase();
     return name.includes(searchQuery.toLowerCase());
-  });
+  }), [conversations, searchQuery]);
 
-  const groupConversations = filteredConversations.filter(conv => conv.type === 'group');
+  const groupConversations = useMemo(() => filteredConversations.filter(conv => conv.type === 'group'), [filteredConversations]);
 
   const getOnlineMemberCount = (conv) => {
     if (conv.type !== 'group') return 0;
@@ -140,7 +143,14 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="header-action-btn">
+            <button className="header-action-btn" onClick={() => {
+              if (activeConversation?.type === 'direct') {
+                const targetId = activeConversation.participants?.find(p => p._id !== user?._id)?._id;
+                if (targetId) initiateCall(targetId, 'audio', activeConversation._id);
+              } else {
+                setActiveTab('calls');
+              }
+            }}>
               <FiPhone />
             </button>
             <button className="header-action-btn" onClick={onOpenSettings}>
@@ -357,6 +367,10 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
         )}
       </div>
 
+      <div className="sidebar-install-section">
+        <DownloadForDesktop variant="sidebar" />
+      </div>
+
       <CreateGroupModal
         currentUser={user}
         isOpen={showCreateGroup}
@@ -364,11 +378,15 @@ export default function Sidebar({ user, conversations, onSelectConversation, onC
       />
     </div>
   );
-}
+});
 
-function CallHistory({ user }) {
+export default Sidebar;
+
+function CallHistory({ user: propUser }) {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
+  const storeUser = useAuthStore(state => state.user);
+  const currentUser = propUser || storeUser;
 
   useEffect(() => {
     let mounted = true;
@@ -397,7 +415,7 @@ function CallHistory({ user }) {
   const getCallIcon = (call) => {
     if (call.status === 'missed' || call.status === 'rejected') return <FiPhoneMissed style={{ color: 'var(--danger)' }} />;
     if (call.type === 'video') return <FiVideo style={{ color: 'var(--primary)' }} />;
-    return <FiPhoneIncoming style={{ color: call.caller?._id === user?._id ? 'var(--primary)' : 'var(--success)' }} />;
+    return <FiPhoneIncoming style={{ color: call.caller?._id === currentUser?._id ? 'var(--primary)' : 'var(--success)' }} />;
   };
 
   return (

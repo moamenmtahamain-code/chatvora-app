@@ -8,8 +8,9 @@ import { FiMail, FiLock, FiUser, FiArrowRight } from 'react-icons/fi';
 
 export default function Login() {
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { isLoading, error, clearError } = useAuthStore();
   const [isRegister, setIsRegister] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,22 +20,30 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
 
-    if (isRegister) {
-      const success = await useAuthStore.getState().register(
-        formData.email,
-        formData.password,
-        formData.username,
-        formData.displayName
-      );
-      if (success) {
-        router.push('/');
+    try {
+      if (isRegister) {
+        const success = await useAuthStore.getState().register(
+          formData.email,
+          formData.password,
+          formData.username,
+          formData.displayName
+        );
+        if (success) {
+          router.push('/');
+        }
+      } else {
+        const success = await useAuthStore.getState().login(formData.email, formData.password);
+        if (success) {
+          router.push('/');
+        }
       }
-    } else {
-      const success = await login(formData.email, formData.password);
-      if (success) {
-        router.push('/');
-      }
+    } catch (err) {
+      console.error('Auth error:', err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -52,7 +61,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-logo">
-          <h1>ChatWave</h1>
+          <h1>Chatvora</h1>
           <p>{isRegister ? 'Create your account' : 'Welcome back'}</p>
         </div>
 
@@ -136,9 +145,12 @@ export default function Login() {
             </div>
           )}
 
-          <button type="submit" className="auth-btn" disabled={isLoading}>
-            {isLoading ? (
-              <span>Loading...</span>
+          <button type="submit" className="auth-btn" disabled={isLoading || submitting}>
+            {isLoading || submitting ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="auth-spinner" />
+                {isRegister ? 'Creating...' : 'Logging in...'}
+              </span>
             ) : (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 {isRegister ? 'Create Account' : 'Login'} <FiArrowRight />

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { FiMenu, FiMessageCircle, FiUsers, FiClock, FiPhone, FiDroplet, FiZap, FiBell, FiShield, FiUploadCloud, FiX, FiSettings } from 'react-icons/fi';
+import { FiMenu, FiMessageCircle, FiUsers, FiClock, FiPhone, FiDroplet, FiZap, FiBell, FiShield, FiUploadCloud, FiX, FiSettings, FiSearch } from 'react-icons/fi';
 import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
 import useCallStore from '../stores/callStore';
@@ -17,9 +17,11 @@ import { setupSocketNotifications, teardownSocketNotifications } from '../lib/so
 import { isE2EESupported } from '../lib/encryption';
 import { useToast } from './ui/Toast';
 import useKeyboardShortcuts from '../lib/useKeyboardShortcuts';
+import LoadingScreen from './LoadingScreen';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import OnboardingWizard from './OnboardingWizard';
+import GlobalSearch from './GlobalSearch';
 
 const CallOverlay = dynamic(() => import('./CallOverlay'), { ssr: false });
 const WallpaperPicker = dynamic(() => import('./WallpaperPicker'), { ssr: false });
@@ -54,7 +56,9 @@ export default function ChatApp() {
   const [stories, setStories] = useState([]);
   const [showFileUploader, setShowFileUploader] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [isE2EE, setIsE2EE] = useState(false);
+  const [appLoading, setAppLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('connected');
   const { wallpaper, getWallpaperStyle } = useWallpaperStore();
   const wallpaperStyle = getWallpaperStyle();
@@ -150,6 +154,12 @@ export default function ChatApp() {
       document.body.classList.remove('sidebar-open');
     }
   }, [isMobile, sidebarOpen]);
+
+  // ─── LOADING ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => setAppLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ─── INIT ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -254,6 +264,10 @@ export default function ChatApp() {
 
   const hasGlobalWP = wallpaper.type !== 'default';
 
+  if (appLoading) {
+    return <LoadingScreen minimumDuration={1200} />;
+  }
+
   return (
     <div className={`app-container ${hasGlobalWP ? 'has-global-wallpaper' : ''}`}>
       <div className={`connection-bar ${connectionStatus}`}>
@@ -309,7 +323,7 @@ export default function ChatApp() {
               </button>
             )}
             <div className="empty-chat-icon">💬</div>
-            <h2>ChatWave</h2>
+            <h2>Chatvora</h2>
             <p>Select a conversation to start messaging</p>
           </div>
         )}
@@ -342,6 +356,14 @@ export default function ChatApp() {
       </div>
 
       <div className="app-actions-stack">
+        <button
+          className="app-action-btn"
+          onClick={() => setShowGlobalSearch(true)}
+          title="Search"
+          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--primary)' }}
+        >
+          <FiSearch />
+        </button>
         <button
           className="app-action-btn"
           onClick={() => window.location.href = '/ai'}
@@ -398,6 +420,12 @@ export default function ChatApp() {
       {showOnboarding && (
         <OnboardingWizard onComplete={() => setShowOnboarding(false)} />
       )}
+
+      <GlobalSearch
+        isOpen={showGlobalSearch}
+        onClose={() => setShowGlobalSearch(false)}
+        onSelectConversation={handleSelectConversation}
+      />
     </div>
   );
 }

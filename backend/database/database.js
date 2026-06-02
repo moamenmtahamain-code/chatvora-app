@@ -2,7 +2,7 @@ const { MongoClient } = require('mongodb');
 const logger = require('../utils/logger');
 
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
-const DB_NAME = process.env.DB_NAME || 'chatwave';
+const DB_NAME = process.env.DB_NAME || 'chatvora';
 
 let client = null;
 let db = null;

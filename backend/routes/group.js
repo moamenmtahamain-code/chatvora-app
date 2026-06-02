@@ -9,5 +9,7 @@ router.put('/:id', auth, controller.updateGroup);
 router.post('/:id/invite', auth, controller.createInvite);
 router.post('/join', auth, controller.joinByInvite);
 router.get('/:id/members', auth, controller.listMembers);
+router.post('/:id/kick', auth, controller.kickMember);
+router.put('/:id/role', auth, controller.updateMemberRole);
 
 module.exports = router;

@@ -48,11 +48,13 @@ export const useAuthStore = create((set, get) => ({
       localStorage.setItem('refreshToken', refreshToken);
 
       initSocket(accessToken);
-      set({ user, isAuthenticated: true, isLoading: false });
+      set({ user, isAuthenticated: true });
       return true;
     } catch (error) {
-      set({ error: getAuthErrorMessage(error, 'Login failed'), isLoading: false });
+      set({ error: getAuthErrorMessage(error, 'Login failed') });
       return false;
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -66,11 +68,13 @@ export const useAuthStore = create((set, get) => ({
       localStorage.setItem('refreshToken', refreshToken);
 
       initSocket(accessToken);
-      set({ user, isAuthenticated: true, isLoading: false });
+      set({ user, isAuthenticated: true });
       return true;
     } catch (error) {
-      set({ error: getAuthErrorMessage(error, 'Registration failed'), isLoading: false });
+      set({ error: getAuthErrorMessage(error, 'Registration failed') });
       return false;
+    } finally {
+      set({ isLoading: false });
     }
   },
 

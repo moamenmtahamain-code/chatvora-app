@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiMic, FiMicOff, FiVideo, FiVideoOff, FiPhoneOff,
   FiPhone, FiPhoneIncoming, FiPhoneMissed, FiUser,
-  FiMaximize, FiMinimize, FiWifi, FiWifiOff
+  FiMaximize, FiMinimize, FiWifi, FiWifiOff, FiMonitor
 } from 'react-icons/fi';
 import useCallStore from '../stores/callStore';
 import socketEvents from '../lib/socket';
@@ -55,6 +55,8 @@ export default function CallOverlay() {
 
   const [incomingCall, setIncomingCall] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const screenTrackRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const containerRef = useRef(null);
@@ -149,6 +151,33 @@ export default function CallOverlay() {
     endCall();
     stopCallTimer();
   }, [endCall, stopCallTimer]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) {
+      if (screenTrackRef.current) {
+        screenTrackRef.current.stop();
+        screenTrackRef.current = null;
+      }
+      setIsScreenSharing(false);
+      return;
+    }
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false,
+      });
+      screenTrackRef.current = screenStream.getVideoTracks()[0];
+      screenTrackRef.current.onended = () => {
+        setIsScreenSharing(false);
+        screenTrackRef.current = null;
+      };
+      setIsScreenSharing(true);
+    } catch (err) {
+      if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+        console.error('Screen share error:', err);
+      }
+    }
+  }, [isScreenSharing]);
 
   const callerName = currentCall?.caller?.displayName
     || currentCall?.caller?.username
@@ -336,6 +365,11 @@ export default function CallOverlay() {
         background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)',
       }}
     >
+      {/* Hidden remote audio — always rendered so audio-only calls play remote stream */}
+      {!isVideoCall && (
+        <audio ref={remoteVideoRef} autoPlay playsInline style={{ display: 'none' }} />
+      )}
+
       {/* ─── VIDEO AREA ──────────────────────────────────────────── */}
       {isVideoCall ? (
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -503,6 +537,28 @@ export default function CallOverlay() {
             title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+          </motion.button>
+        )}
+
+        {/* Screen Share */}
+        {(isVideoCall || callStatus === 'connected') && (
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleScreenShare}
+            style={{
+              width: 52, height: 52, borderRadius: '50%',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20,
+              background: isScreenSharing
+                ? 'linear-gradient(135deg, #10b981, #059669)'
+                : 'rgba(255,255,255,0.08)',
+              color: isScreenSharing ? 'white' : 'var(--text-dark)',
+              transition: 'all 0.2s',
+            }}
+            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+          >
+            <FiMonitor size={20} />
           </motion.button>
         )}
 

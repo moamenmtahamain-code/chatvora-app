@@ -41,6 +41,7 @@ const insertOne = async (doc) => {
     reactions: doc.reactions || [],
     deleteFor: doc.deleteFor || [],
     media: doc.media || null,
+    disappearAt: doc.disappearAt || null,
     createdAt: now,
     updatedAt: now
   };

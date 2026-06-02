@@ -73,7 +73,7 @@ async function init() {
   });
 
   app.listen(5000, () => {
-    console.log('ChatWave server live on port 5000.');
+    console.log('Chatvora server live on port 5000.');
   });
 }
 

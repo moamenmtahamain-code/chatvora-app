@@ -1,0 +1,93 @@
+{
+  "name": "chatvora-desktop",
+  "version": "1.0.0",
+  "description": "Chatvora Desktop App",
+  "main": "electron/main.js",
+  "scripts": {
+    "postinstall": "npm install --prefix frontend && npm install --prefix backend",
+    "start": "electron .",
+    "dev": "concurrently --kill-others \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"electron .\"",
+    "electron-dev": "concurrently --kill-others \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"electron .\"",
+    "build": "node build.js",
+    "build:clean": "node build.js --clean",
+    "build:web": "node build.js --web",
+    "dist": "node build.js",
+    "dist:clean": "node build.js --clean",
+    "build:mac": "node build.js --clean && npx electron-builder build --mac",
+    "build:linux": "node build.js --clean && npx electron-builder build --linux",
+    "cleanup": "node electron/cleanup.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.chatvora.desktop",
+    "productName": "Chatvora",
+    "copyright": "Copyright © 2026 Chatvora",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/.next/standalone",
+        "to": ".next/standalone",
+        "filter": ["**/*", "!**/.cache"]
+      },
+      {
+        "from": "frontend/public",
+        "to": "public",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!test-scripts/**",
+          "!**/.cache/**",
+          "!**/.env.example"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "frontend/public/icons/icon.ico",
+      "signAndEditExecutable": false,
+      "signDlls": false
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "frontend/public/icons/icon-512x512.png",
+      "category": "public.app-category.social-networking"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "frontend/public/icons/icon-512x512.png",
+      "category": "Network"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Chatvora",
+      "installerIcon": "frontend/public/icons/icon.ico",
+      "uninstallerIcon": "frontend/public/icons/icon.ico",
+      "installerHeaderIcon": "frontend/public/icons/icon.ico",
+      "license": null,
+      "runAfterFinish": true
+    }
+  }
+}
