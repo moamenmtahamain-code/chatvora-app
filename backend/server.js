@@ -78,8 +78,12 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ─── ROOT WELCOME PAGE ───────────────────────────────────────────────────────
+// ─── ROOT: REDIRECT TO FRONTEND OR SHOW WELCOME ──────────────────────────────
 app.get('/', (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (frontendUrl) {
+    return res.redirect(frontendUrl);
+  }
   res.send(`<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -126,6 +130,9 @@ app.get('/', (req, res) => {
     .card .icon { font-size: 2.5rem; margin-bottom: 16px; }
     .card .title { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; }
     .card .desc { font-size: 0.9rem; color: #888; }
+    .hint { margin-top: 40px; padding: 16px; background: #151520; border-radius: 12px; border: 1px solid #222; }
+    .hint code { color: #667eea; background: #1a1a2e; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; }
+    .hint p { color: #888; font-size: 0.9rem; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -144,6 +151,9 @@ app.get('/', (req, res) => {
         <div class="title">Leaderboard</div>
         <div class="desc">See the top contributors in the community</div>
       </a>
+    </div>
+    <div class="hint">
+      <p>💡 <strong>Tip:</strong> Deploy the frontend on Vercel and set <code>FRONTEND_URL</code> env var on Render to auto-redirect visitors to the chat app.</p>
     </div>
   </div>
 </body>
