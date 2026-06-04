@@ -176,6 +176,82 @@ const usePremiumStore = create((set, get) => ({
     return formatted;
   },
 
+  // ─── FRIENDS & FRIEND REQUESTS ──────────────────────────────
+  friends: [],
+  friendRequests: [],
+
+  fetchFriends: async () => {
+    try {
+      const { data } = await api.get('/premium/friends');
+      set({ friends: data.friends || [] });
+    } catch (e) {
+      console.error('Failed to fetch friends:', e);
+      set({ friends: [] });
+    }
+  },
+
+  fetchFriendRequests: async () => {
+    try {
+      const { data } = await api.get('/premium/friends/requests');
+      set({ friendRequests: data.requests || [] });
+    } catch (e) {
+      console.error('Failed to fetch friend requests:', e);
+      set({ friendRequests: [] });
+    }
+  },
+
+  sendFriendRequest: async (userId) => {
+    try {
+      await api.post(`/premium/friends/request/${userId}`);
+      return true;
+    } catch (e) {
+      console.error('Failed to send friend request:', e);
+      return false;
+    }
+  },
+
+  acceptRequest: async (requestId) => {
+    try {
+      await api.put(`/premium/friends/requests/${requestId}/accept`);
+      set((s) => ({
+        friendRequests: s.friendRequests.filter(r => r._id !== requestId),
+      }));
+      // Refresh friends list
+      const { data } = await api.get('/premium/friends');
+      set({ friends: data.friends || [] });
+      return true;
+    } catch (e) {
+      console.error('Failed to accept request:', e);
+      return false;
+    }
+  },
+
+  rejectRequest: async (requestId) => {
+    try {
+      await api.put(`/premium/friends/requests/${requestId}/reject`);
+      set((s) => ({
+        friendRequests: s.friendRequests.filter(r => r._id !== requestId),
+      }));
+      return true;
+    } catch (e) {
+      console.error('Failed to reject request:', e);
+      return false;
+    }
+  },
+
+  removeFriend: async (userId) => {
+    try {
+      await api.delete(`/premium/friends/${userId}`);
+      set((s) => ({
+        friends: s.friends.filter(f => f._id !== userId),
+      }));
+      return true;
+    } catch (e) {
+      console.error('Failed to remove friend:', e);
+      return false;
+    }
+  },
+
   // ─── LOCKED CHATS ──────────────────────────────────────────
   lockedChats: {},
   lockChat: async (conversationId, pin) => {

@@ -115,7 +115,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
 
   const tabs = [
     { id: 'chats', label: 'Chats' },
-    { id: 'friends', label: `Friends${friendRequests.length > 0 ? ` (${friendRequests.length})` : ''}` },
+    { id: 'friends', label: `Friends${(friendRequests?.length ?? 0) > 0 ? ` (${friendRequests.length})` : ''}` },
     { id: 'groups', label: 'Groups' },
     { id: 'archive', label: 'Archive' },
     { id: 'calls', label: 'Calls' }
@@ -315,7 +315,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
           </>
         ) : activeTab === 'friends' ? (
           <div style={{ padding: '8px' }}>
-            {friendRequests.length > 0 && (
+            {(friendRequests?.length ?? 0) > 0 && (
               <>
                 <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>
                   FRIEND REQUESTS ({friendRequests.length})

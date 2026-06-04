@@ -11,6 +11,112 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const FriendRequest = require('../models/FriendRequest');
 
+// ─── FRIENDS ─────────────────────────────────────────────────────
+const { toObjectId } = require('../database/database');
+
+// Get all friends
+router.get('/friends', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('contacts', '-password -refreshToken');
+    res.json({ friends: user?.contacts || [] });
+  } catch (e) {
+    res.json({ friends: [] });
+  }
+});
+
+// Remove friend
+router.delete('/friends/:userId', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.contacts) {
+      user.contacts = user.contacts.filter(c => c.toString() !== req.params.userId);
+      await user.save();
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to remove friend' });
+  }
+});
+
+// Send friend request
+router.post('/friends/request/:userId', auth, async (req, res) => {
+  try {
+    if (req.params.userId === req.user.id.toString()) {
+      return res.status(400).json({ error: 'Cannot send request to yourself' });
+    }
+    const existing = await FriendRequest.findBetween(req.user.id, req.params.userId);
+    if (existing) {
+      return res.status(400).json({ error: 'Request already exists' });
+    }
+    const request = await FriendRequest.create(req.user.id, req.params.userId);
+    res.json({ request });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to send friend request' });
+  }
+});
+
+// Get pending friend requests (received)
+router.get('/friends/requests', auth, async (req, res) => {
+  try {
+    const requests = await FriendRequest.findPendingTo(req.user.id);
+    // Populate 'from' user info
+    const populated = await Promise.all((requests || []).map(async (req) => {
+      const fromUser = await User.findById(req.from).select('-password -refreshToken');
+      return { ...req, from: fromUser };
+    }));
+    res.json({ requests: populated });
+  } catch (e) {
+    res.json({ requests: [] });
+  }
+});
+
+// Get sent friend requests
+router.get('/friends/requests/sent', auth, async (req, res) => {
+  try {
+    const requests = await FriendRequest.findPendingFrom(req.user.id);
+    res.json({ requests });
+  } catch (e) {
+    res.json({ requests: [] });
+  }
+});
+
+// Accept friend request
+router.put('/friends/requests/:id/accept', auth, async (req, res) => {
+  try {
+    const updated = await FriendRequest.updateStatus(req.params.id, 'accepted');
+    if (updated) {
+      // Add each user to the other's contacts
+      const fromId = updated.from.toString();
+      const toId = updated.to.toString();
+      await User.findByIdAndUpdate(toId, { $addToSet: { contacts: fromId } });
+      await User.findByIdAndUpdate(fromId, { $addToSet: { contacts: toId } });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to accept request' });
+  }
+});
+
+// Reject friend request
+router.put('/friends/requests/:id/reject', auth, async (req, res) => {
+  try {
+    await FriendRequest.updateStatus(req.params.id, 'rejected');
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reject request' });
+  }
+});
+
+// Get mutual friends
+router.get('/friends/mutual/:userId', auth, async (req, res) => {
+  try {
+    const mutual = await FriendRequest.getMutualFriends(req.user.id, req.params.userId);
+    res.json({ friends: mutual });
+  } catch (e) {
+    res.json({ friends: [] });
+  }
+});
+
 // ─── MULTIPLE THEMES ────────────────────────────────────────────
 router.get('/themes', (_req, res) => {
   res.json({
