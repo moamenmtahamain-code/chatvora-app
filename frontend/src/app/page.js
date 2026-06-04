@@ -509,13 +509,33 @@ function LandingPage() {
 export default function Home() {
   const { isAuthenticated, isLoading, initialize } = useAuthStore();
   const [mounted, setMounted] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    const token = localStorage.getItem('accessToken');
+    setHasToken(!!token);
     initialize();
   }, [initialize]);
 
-  if (!mounted || isLoading) {
+  // Show landing page immediately for non-authenticated users
+  // (no token = no need to wait for API call)
+  if (!mounted) {
+    return (
+      <div style={{
+        height: '100vh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', background: 'var(--gradient-dark)'
+      }}>
+        <div className="skeleton" style={{ width: 60, height: 60, borderRadius: '50%' }} />
+      </div>
+    );
+  }
+
+  // If no token exists, skip loading entirely - show landing page instantly
+  if (!hasToken) return <LandingPage />;
+
+  // If we have a token, show a brief spinner while verifying
+  if (isLoading) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center',

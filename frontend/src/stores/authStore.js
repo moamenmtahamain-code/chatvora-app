@@ -30,11 +30,21 @@ export const useAuthStore = create((set, get) => ({
       return;
     }
 
+    // Safety: force loading to false after 8s max to prevent infinite spinner
+    const safetyTimer = setTimeout(() => {
+      set((state) => {
+        if (state.isLoading) return { isLoading: false };
+        return state;
+      });
+    }, 8000);
+
     try {
       const response = await authAPI.me();
+      clearTimeout(safetyTimer);
       set({ user: response.data, isAuthenticated: true, isLoading: false });
       initSocket(token);
     } catch (error) {
+      clearTimeout(safetyTimer);
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       set({ isLoading: false });

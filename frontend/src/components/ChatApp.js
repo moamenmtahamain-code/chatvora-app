@@ -157,7 +157,8 @@ export default function ChatApp() {
 
   // ─── LOADING ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const timer = setTimeout(() => setAppLoading(false), 1000);
+    // Quick splash (300ms) then show app - no artificial delay
+    const timer = setTimeout(() => setAppLoading(false), 300);
     return () => clearTimeout(timer);
   }, []);
 
@@ -168,11 +169,7 @@ export default function ChatApp() {
     setupSocketNotifications();
     setIsE2EE(isE2EESupported());
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(e => {
-        console.warn('[PWA] Service worker registration failed:', e);
-      });
-    }
+    // Note: Service worker is already registered in AppProviders.js - no need to register again
 
     const cbs = callbacksRef.current;
     if (!cbs) return;
