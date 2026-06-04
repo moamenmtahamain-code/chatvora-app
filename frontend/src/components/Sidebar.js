@@ -10,7 +10,6 @@ import { userAPI, callAPI } from '../lib/api';
 import { AI_BOT, AI_CONVERSATION } from '../lib/aiBot';
 import useCallStore from '../stores/callStore';
 import CreateGroupModal from './CreateGroupModal';
-import DownloadForDesktop from './DownloadForDesktop';
 import usePremiumStore from '../stores/premiumStore';
 import ThemeSwitcher from './ThemeSwitcher';
 import NotificationPopup from './NotificationPopup';
@@ -446,10 +445,6 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
             <CallHistory user={user} />
           </div>
         )}
-      </div>
-
-      <div className="sidebar-install-section">
-        <DownloadForDesktop variant="sidebar" />
       </div>
 
       <CreateGroupModal
