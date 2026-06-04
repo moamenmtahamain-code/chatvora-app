@@ -11,6 +11,7 @@ const { toObjectId } = require('../database/database');
 // userId -> Set<socketId>   (multi-tab support)
 const connectedUsers = new Map();
 const userSockets = new Map();
+let _io = null;
 
 function getOnlineUsers() {
   return Array.from(connectedUsers.keys());
@@ -285,6 +286,168 @@ function setupWebSocket(io) {
         });
       } catch (err) {
         logger.error('[WS] message:read error:', err.message);
+      }
+    });
+
+    // ─── EDIT MESSAGE ──────────────────────────────────────────────────
+    socket.on('message:edit', async (data = {}, cb) => {
+      try {
+        const { conversationId, messageId, content } = data;
+        if (!conversationId || !messageId || !content?.trim()) {
+          if (typeof cb === 'function') cb({ error: 'Missing required fields' });
+          return;
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          if (typeof cb === 'function') cb({ error: 'Message not found' });
+          return;
+        }
+
+        if (message.sender.toString() !== uid) {
+          if (typeof cb === 'function') cb({ error: 'Not authorized' });
+          return;
+        }
+
+        const now = new Date();
+        const updated = await Message.findByIdAndUpdate(messageId, {
+          content: content.trim(),
+          isEdited: true,
+          editedAt: now
+        });
+
+        const populated = { ...updated, content: content.trim(), isEdited: true, editedAt: now };
+        socket.to(`conversation:${conversationId}`).emit('message:edited', { message: populated });
+        if (typeof cb === 'function') cb({ ok: true, message: populated });
+      } catch (err) {
+        logger.error('[WS] message:edit error:', err.message);
+        if (typeof cb === 'function') cb({ error: 'Failed to edit message' });
+      }
+    });
+
+    // ─── DELETE FOR ME ─────────────────────────────────────────────────
+    socket.on('message:delete_for_me', async (data = {}, cb) => {
+      try {
+        const { conversationId, messageId } = data;
+        if (!conversationId || !messageId) {
+          if (typeof cb === 'function') cb({ error: 'Missing required fields' });
+          return;
+        }
+
+        await Message.findByIdAndUpdate(messageId, {
+          $addToSet: { deletedFor: toObjectId(uid) }
+        });
+
+        if (typeof cb === 'function') cb({ ok: true });
+      } catch (err) {
+        logger.error('[WS] message:delete_for_me error:', err.message);
+        if (typeof cb === 'function') cb({ error: 'Failed to delete message' });
+      }
+    });
+
+    // ─── DELETE FOR EVERYONE ───────────────────────────────────────────
+    socket.on('message:delete_for_everyone', async (data = {}, cb) => {
+      try {
+        const { conversationId, messageId } = data;
+        if (!conversationId || !messageId) {
+          if (typeof cb === 'function') cb({ error: 'Missing required fields' });
+          return;
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          if (typeof cb === 'function') cb({ error: 'Message not found' });
+          return;
+        }
+
+        if (message.sender.toString() !== uid) {
+          if (typeof cb === 'function') cb({ error: 'Not authorized' });
+          return;
+        }
+
+        await Message.findByIdAndUpdate(messageId, {
+          content: 'This message was deleted',
+          isDeleted: true,
+          deletedAt: new Date(),
+          media: null
+        });
+
+        const roomName = `conversation:${conversationId}`;
+        io.to(roomName).emit('message:deleted', { messageId });
+        if (typeof cb === 'function') cb({ ok: true });
+      } catch (err) {
+        logger.error('[WS] message:delete_for_everyone error:', err.message);
+        if (typeof cb === 'function') cb({ error: 'Failed to delete message' });
+      }
+    });
+
+    // ─── TOGGLE PIN ────────────────────────────────────────────────────
+    socket.on('message:pin_toggle', async (data = {}, cb) => {
+      try {
+        const { conversationId, messageId } = data;
+        if (!conversationId || !messageId) {
+          if (typeof cb === 'function') cb({ error: 'Missing required fields' });
+          return;
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          if (typeof cb === 'function') cb({ error: 'Message not found' });
+          return;
+        }
+
+        const newPinState = !message.isPinned;
+        await Message.findByIdAndUpdate(messageId, { isPinned: newPinState, pinnedAt: newPinState ? new Date() : null });
+
+        const roomName = `conversation:${conversationId}`;
+        io.to(roomName).emit('message:pin_toggled', { messageId, isPinned: newPinState });
+        if (typeof cb === 'function') cb({ ok: true, isPinned: newPinState });
+      } catch (err) {
+        logger.error('[WS] message:pin_toggle error:', err.message);
+        if (typeof cb === 'function') cb({ error: 'Failed to toggle pin' });
+      }
+    });
+
+    // ─── REACT TO MESSAGE ──────────────────────────────────────────────
+    socket.on('message:react', async (data = {}, cb) => {
+      try {
+        const { conversationId, messageId, emoji } = data;
+        if (!conversationId || !messageId || !emoji) {
+          if (typeof cb === 'function') cb({ error: 'Missing required fields' });
+          return;
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+          if (typeof cb === 'function') cb({ error: 'Message not found' });
+          return;
+        }
+
+        let reactions = message.reactions || [];
+        const existingIdx = reactions.findIndex(r => r.emoji === emoji && r.users?.includes(uid));
+
+        if (existingIdx >= 0) {
+          reactions[existingIdx].users = reactions[existingIdx].users.filter(id => id.toString() !== uid);
+          reactions[existingIdx].count = Math.max(0, (reactions[existingIdx].count || 1) - 1);
+          if (reactions[existingIdx].count === 0) reactions.splice(existingIdx, 1);
+        } else {
+          const existingEmoji = reactions.findIndex(r => r.emoji === emoji);
+          if (existingEmoji >= 0) {
+            reactions[existingEmoji].users = [...(reactions[existingEmoji].users || []), uid];
+            reactions[existingEmoji].count = (reactions[existingEmoji].count || 0) + 1;
+          } else {
+            reactions.push({ emoji, users: [uid], count: 1 });
+          }
+        }
+
+        await Message.findByIdAndUpdate(messageId, { reactions });
+
+        const roomName = `conversation:${conversationId}`;
+        io.to(roomName).emit('message:reacted', { messageId, reactions });
+        if (typeof cb === 'function') cb({ ok: true, reactions });
+      } catch (err) {
+        logger.error('[WS] message:react error:', err.message);
+        if (typeof cb === 'function') cb({ error: 'Failed to react' });
       }
     });
 

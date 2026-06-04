@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiPlus, FiPhone, FiSettings, FiUsers, FiStar, FiArchive, FiX, FiPhoneIncoming, FiPhoneMissed, FiVideo, FiZap } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiPhone, FiSettings, FiUsers, FiStar, FiArchive, FiX, FiPhoneIncoming, FiPhoneMissed, FiVideo, FiZap, FiUserPlus, FiCheck, FiUserX } from 'react-icons/fi';
 import { formatDistanceToNow, format } from 'date-fns';
 import useAuthStore from '../stores/authStore';
 import useChatStore from '../stores/chatStore';
@@ -11,6 +11,9 @@ import { AI_BOT, AI_CONVERSATION } from '../lib/aiBot';
 import useCallStore from '../stores/callStore';
 import CreateGroupModal from './CreateGroupModal';
 import DownloadForDesktop from './DownloadForDesktop';
+import usePremiumStore from '../stores/premiumStore';
+import ThemeSwitcher from './ThemeSwitcher';
+import NotificationPopup from './NotificationPopup';
 
 const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversation, onCloseSidebar, isMobile, onSelectAIChat, onOpenProfile, onViewStory, onOpenSettings }) {
   const [activeTab, setActiveTab] = useState('chats');
@@ -21,6 +24,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
   const { logout, updateProfile } = useAuthStore();
   const { activeConversation, setActiveConversation, createConversation } = useChatStore();
   const { initiateCall } = useCallStore();
+  const { friends, friendRequests, fetchFriends, fetchFriendRequests, acceptRequest, rejectRequest } = usePremiumStore();
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
@@ -99,6 +103,10 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
   }), [conversations, searchQuery]);
 
   const groupConversations = useMemo(() => filteredConversations.filter(conv => conv.type === 'group'), [filteredConversations]);
+  const pinnedConversations = useMemo(() => filteredConversations.filter(conv => conv.isPinned), [filteredConversations]);
+  const archivedConversations = useMemo(() => filteredConversations.filter(conv => conv.isArchived), [filteredConversations]);
+
+  useEffect(() => { fetchFriends(); fetchFriendRequests(); }, []);
 
   const getOnlineMemberCount = (conv) => {
     if (conv.type !== 'group') return 0;
@@ -107,8 +115,9 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
 
   const tabs = [
     { id: 'chats', label: 'Chats' },
+    { id: 'friends', label: `Friends${friendRequests.length > 0 ? ` (${friendRequests.length})` : ''}` },
     { id: 'groups', label: 'Groups' },
-    { id: 'status', label: 'Status' },
+    { id: 'archive', label: 'Archive' },
     { id: 'calls', label: 'Calls' }
   ];
 
@@ -142,7 +151,9 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <NotificationPopup />
+            <ThemeSwitcher />
             <button className="header-action-btn" onClick={() => {
               if (activeConversation?.type === 'direct') {
                 const targetId = activeConversation.participants?.find(p => p._id !== user?._id)?._id;
@@ -302,6 +313,76 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
             </div>
           )}
           </>
+        ) : activeTab === 'friends' ? (
+          <div style={{ padding: '8px' }}>
+            {friendRequests.length > 0 && (
+              <>
+                <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>
+                  FRIEND REQUESTS ({friendRequests.length})
+                </div>
+                {friendRequests.map(req => (
+                  <div key={req._id} className="conversation-item" style={{ background: 'rgba(99,102,241,0.06)', borderRadius: '12px', marginBottom: '4px' }}>
+                    <div className="avatar">
+                      {req.from?.avatar ? <img src={req.from.avatar} alt="" /> : (req.from?.displayName || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="conversation-info">
+                      <div className="conversation-name">{req.from?.displayName || req.from?.username}</div>
+                      <div className="conversation-preview">wants to be your friend</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => acceptRequest(req._id)} style={{ background: 'var(--success)', color: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '12px' }}><FiCheck /></button>
+                      <button onClick={() => rejectRequest(req._id)} style={{ background: 'var(--danger)', color: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '12px' }}><FiX /></button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+              MY FRIENDS ({friends.length})
+            </div>
+            {friends.length > 0 ? friends.map(f => (
+              <motion.div key={f._id} className="conversation-item" onClick={() => handleSelectUser(f)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                <div className={`avatar ${f.isOnline ? 'online' : ''}`}>
+                  {f.avatar ? <img src={f.avatar} alt="" /> : (f.displayName || f.username || '?')[0].toUpperCase()}
+                </div>
+                <div className="conversation-info">
+                  <div className="conversation-name">
+                    {f.displayName || f.username}
+                    {f.badges?.isVerified && <span style={{ color: '#3b82f6', marginLeft: 4 }}>✓</span>}
+                    {f.badges?.isPremium && <span style={{ color: '#f59e0b', marginLeft: 4 }}>⭐</span>}
+                  </div>
+                  <div className="conversation-preview">{f.customStatus || f.bio || 'Hey there!'}</div>
+                </div>
+              </motion.div>
+            )) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <FiUserPlus style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.5 }} />
+                <p>No friends yet</p>
+                <p style={{ fontSize: '13px', marginTop: '8px' }}>Search users and send friend requests!</p>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'archive' ? (
+          <div style={{ padding: '8px' }}>
+            <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+              ARCHIVED ({archivedConversations.length})
+            </div>
+            {archivedConversations.length > 0 ? archivedConversations.map(conv => (
+              <motion.div key={conv._id} className={`conversation-item ${activeConversation?._id === conv._id ? 'active' : ''}`} onClick={() => handleSelectConversation(conv)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                <div className="avatar">{getConversationAvatar(conv)}</div>
+                <div className="conversation-info">
+                  <div className="conversation-name">{getConversationName(conv)}</div>
+                  <div className="conversation-preview">{conv.lastMessage?.content?.substring(0, 40) || 'No messages'}</div>
+                </div>
+              </motion.div>
+            )) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <FiArchive style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.5 }} />
+                <p>No archived chats</p>
+                <p style={{ fontSize: '13px', marginTop: '8px' }}>Archive conversations to hide them</p>
+              </div>
+            )}
+          </div>
         ) : activeTab === 'groups' ? (
           <div className="groups-tab-content">
             <div className="groups-list">

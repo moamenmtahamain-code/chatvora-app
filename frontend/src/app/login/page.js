@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useAuthStore from '../../stores/authStore';
@@ -11,6 +11,15 @@ export default function Login() {
   const { isLoading, error, clearError } = useAuthStore();
   const [isRegister, setIsRegister] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
+
+  // Ping the server to wake it up from cold start (Render free tier)
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:5000/api`;
+    if (apiUrl.includes('render.com') || apiUrl.includes('onrender')) {
+      fetch(apiUrl.replace('/api', '/health'), { method: 'GET' }).catch(() => {});
+    }
+  }, []);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -140,8 +149,18 @@ export default function Login() {
           </div>
 
           {error && (
-            <div style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center', lineHeight: 1.5 }}>
               {error}
+              {(error.includes('waking up') || error.includes('starting up') || error.includes('reach')) && (
+                <button type="button" onClick={() => { clearError(); handleSubmit(new Event('submit')); }}
+                  style={{
+                    display: 'block', margin: '10px auto 0', padding: '8px 20px',
+                    borderRadius: 8, background: 'var(--primary)', color: 'white',
+                    border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  }}>
+                  Try Again
+                </button>
+              )}
             </div>
           )}
 

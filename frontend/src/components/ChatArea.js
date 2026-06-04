@@ -94,6 +94,42 @@ const ChatArea = memo(function ChatArea({ conversation, user, onBack, isMobile, 
     return user?._id === messageSenderId;
   };
 
+  const canAdminGroup = useMemo(() => {
+    if (!conversation || conversation.type !== 'group') return false;
+    const role = getGroupMemberRole(user?._id);
+    return ['owner', 'admin'].includes(role);
+  }, [conversation, user?._id]);
+
+  const handleAddMember = useCallback(async (person) => {
+    if (!person?._id || !conversation?._id) return;
+    try {
+      await conversationAPI.addParticipants(conversation._id, [person._id]);
+      setMemberQuery('');
+      setMemberResults([]);
+    } catch (err) {
+      console.error('Add member error:', err);
+    }
+  }, [conversation?._id]);
+
+  const handleRemoveMember = useCallback(async (member) => {
+    const memberId = member?.user?._id;
+    if (!memberId || !conversation?.groupId) return;
+    try {
+      await groupAPI.kick(conversation.groupId, memberId);
+    } catch (err) {
+      console.error('Remove member error:', err);
+    }
+  }, [conversation?.groupId]);
+
+  const handleQuickReaction = useCallback((messageId, emoji) => {
+    handleReactWithEmoji({ _id: messageId }, emoji);
+  }, []);
+
+  const handleEmojiClick = useCallback((emojiData) => {
+    setMessageText(prev => prev + emojiData.emoji);
+    inputRef.current?.focus();
+  }, []);
+
   // Auto-enable AI mode for Nexus AI chat
   useEffect(() => {
     if (isAIChat) {

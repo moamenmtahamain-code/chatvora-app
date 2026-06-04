@@ -17,35 +17,104 @@ export { PRESET_STYLES };
 export const useAIStore = create((set, get) => ({
   currentPrompt: '',
   selectedStyle: 'realistic',
+  selectedProvider: 'openai',
+  aspectRatio: '1:1',
   isGenerating: false,
   currentImage: null,
   history: [],
   error: null,
+  providers: [],
+  providerStatus: {},
+  providersLoaded: false,
+  isDemoMode: false,
+  testingProvider: null,
+  testResults: {},
 
   setPrompt: (prompt) => set({ currentPrompt: prompt }),
   setStyle: (style) => set({ selectedStyle: style }),
+  setProvider: (provider) => set({ selectedProvider: provider }),
+  setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
   clearError: () => set({ error: null }),
 
-  generate: async (prompt, style) => {
+  fetchProviders: async () => {
+    try {
+      const response = await aiAPI.getProviders();
+      const { providers, defaultProvider, demo, providerStatus } = response.data;
+      set({
+        providers,
+        providerStatus: providerStatus || {},
+        providersLoaded: true,
+        selectedProvider: defaultProvider || providers[0]?.id || 'openai',
+        isDemoMode: !!demo,
+      });
+    } catch (e) {
+      console.error('Failed to fetch providers:', e);
+      set({ providersLoaded: true, isDemoMode: true });
+    }
+  },
+
+  fetchProviderStatus: async () => {
+    try {
+      const response = await aiAPI.getProviderStatus();
+      set({ providerStatus: response.data.providers || {} });
+      return response.data;
+    } catch (e) {
+      console.error('Failed to fetch provider status:', e);
+      return null;
+    }
+  },
+
+  testConnection: async (providerId) => {
+    set({ testingProvider: providerId });
+    try {
+      const response = await aiAPI.testConnection(providerId);
+      const result = response.data;
+      set((state) => ({
+        testingProvider: null,
+        testResults: { ...state.testResults, [providerId]: result },
+      }));
+      return result;
+    } catch (e) {
+      const result = { success: false, error: e.response?.data?.error || e.message || 'Connection test failed' };
+      set((state) => ({
+        testingProvider: null,
+        testResults: { ...state.testResults, [providerId]: result },
+      }));
+      return result;
+    }
+  },
+
+  generate: async (prompt, style, aspectRatio, provider) => {
     set({ isGenerating: true, error: null, currentImage: null });
     try {
       const response = await aiAPI.generateImage({
         prompt: prompt || get().currentPrompt,
-        style: style || get().selectedStyle
+        style: style || get().selectedStyle,
+        aspectRatio: aspectRatio || get().aspectRatio,
+        provider: provider || get().selectedProvider,
       });
-      const { url, revisedPrompt, demo } = response.data;
-      set({ currentImage: { url, prompt, revisedPrompt, demo: !!demo }, isGenerating: false });
+      const { url, revisedPrompt, demo, provider: usedProvider } = response.data;
+      set({
+        currentImage: { url, prompt, revisedPrompt, demo: !!demo, provider: usedProvider },
+        isGenerating: false,
+      });
       return response.data;
     } catch (error) {
-      const msg = error.response?.data?.message || 'Failed to generate image';
+      const msg = error.response?.data?.message || error.message || 'Failed to generate image';
       set({ error: msg, isGenerating: false });
       return null;
     }
   },
 
-  saveGeneration: async (prompt, url, style) => {
+  saveGeneration: async (prompt, url, style, aspectRatio, provider) => {
     try {
-      await aiAPI.saveGeneration({ prompt, url, style: style || get().selectedStyle });
+      await aiAPI.saveGeneration({
+        prompt,
+        url,
+        style: style || get().selectedStyle,
+        aspectRatio: aspectRatio || get().aspectRatio,
+        provider: provider || get().selectedProvider,
+      });
       get().fetchHistory();
     } catch (e) {
       console.error('Failed to save generation:', e);
@@ -70,5 +139,5 @@ export const useAIStore = create((set, get) => ({
     }
   },
 
-  clearCurrent: () => set({ currentImage: null, currentPrompt: '', error: null })
+  clearCurrent: () => set({ currentImage: null, currentPrompt: '', error: null }),
 }));

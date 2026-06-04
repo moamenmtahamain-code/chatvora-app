@@ -8,8 +8,11 @@ const getAuthErrorMessage = (error, fallback) => {
   if (Array.isArray(data?.errors) && data.errors.length > 0) {
     return data.errors.map((item) => item.msg).join(', ');
   }
+  if (error.code === 'ECONNABORTED' || error.code === 'ERR_CANCELED' || error.message?.includes('timeout')) {
+    return 'Server is waking up... Please wait a moment and try again.';
+  }
   if (error.code === 'ERR_NETWORK') {
-    return 'Cannot reach the server. Make sure the backend is running on port 5000.';
+    return 'Cannot reach the server. It may be starting up — please wait 30 seconds and try again.';
   }
   return fallback;
 };

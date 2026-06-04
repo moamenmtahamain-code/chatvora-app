@@ -73,7 +73,7 @@ function LandingPage() {
         transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
-          padding: scrolled ? '12px 32px' : '20px 32px',
+          padding: scrolled ? '12px 16px' : '20px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: scrolled ? 'rgba(15,15,26,0.82)' : 'transparent',
           backdropFilter: scrolled ? 'blur(24px) saturate(1.4)' : 'none',
@@ -265,8 +265,8 @@ function LandingPage() {
         </motion.div>
 
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 20, maxWidth: 1100, margin: '0 auto',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 16, maxWidth: 1100, margin: '0 auto',
         }}>
           {FEATURES.map((feature, i) => (
             <motion.div

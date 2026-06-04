@@ -19,6 +19,7 @@ const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -181,12 +182,54 @@ export const notificationAPI = {
   delete: (id) => api.delete(`/notifications/${id}`)
 };
 
+export const premiumAPI = {
+  // Friends
+  sendFriendRequest: (userId) => api.post(`/premium/friends/request/${userId}`),
+  getFriendRequests: () => api.get('/premium/friends/requests'),
+  getSentRequests: () => api.get('/premium/friends/requests/sent'),
+  acceptRequest: (id) => api.put(`/premium/friends/requests/${id}/accept`),
+  rejectRequest: (id) => api.put(`/premium/friends/requests/${id}/reject`),
+  getFriends: () => api.get('/premium/friends'),
+  removeFriend: (userId) => api.delete(`/premium/friends/${userId}`),
+  getMutualFriends: (userId) => api.get(`/premium/friends/mutual/${userId}`),
+  // Profile
+  getProfile: (userId) => api.get(`/premium/profile/${userId}`),
+  updateProfile: (data) => api.put('/premium/profile', data),
+  // Badges
+  setBadge: (userId, badge, value) => api.put(`/premium/badges/${userId}`, { badge, value }),
+  // Block
+  blockUser: (userId) => api.put(`/premium/block/${userId}`),
+  unblockUser: (userId) => api.put(`/premium/unblock/${userId}`),
+  getBlocked: () => api.get('/premium/blocked'),
+  // Saved Messages
+  saveMessage: (msgId) => api.post(`/premium/saved-messages/${msgId}`),
+  getSavedMessages: () => api.get('/premium/saved-messages'),
+  removeSavedMessage: (msgId) => api.delete(`/premium/saved-messages/${msgId}`),
+  // Polls
+  createPoll: (data) => api.post('/premium/polls', data),
+  getPolls: (convId) => api.get(`/premium/polls/${convId}`),
+  votePoll: (pollId, optionIndex) => api.put(`/premium/polls/${pollId}/vote`, { optionIndex }),
+  deletePoll: (pollId) => api.delete(`/premium/polls/${pollId}`),
+  // Archive
+  archiveChat: (convId) => api.put(`/premium/archive/${convId}`),
+  unarchiveChat: (convId) => api.put(`/premium/unarchive/${convId}`),
+  // Pin
+  pinChat: (convId) => api.put(`/premium/pin/${convId}`),
+  unpinChat: (convId) => api.put(`/premium/unpin/${convId}`),
+  // Search
+  searchMessages: (q, type, convId) => api.get(`/premium/search/messages?q=${q}${type ? '&type=' + type : ''}${convId ? '&conversationId=' + convId : ''}`),
+};
+
 export const aiAPI = {
-  generateImage: (data) => api.post('/ai/generate-image', data),
+  getProviders: () => api.get('/ai/providers'),
+  getProviderStatus: () => api.get('/ai/provider-status'),
+  testConnection: (provider) => api.post('/ai/test-connection', { provider }, { timeout: 15000 }),
+  generateImage: (data) => api.post('/ai/generate-image', data, { timeout: 180000 }),
   getHistory: () => api.get('/ai/history'),
   saveGeneration: (data) => api.post('/ai/save', data),
   deleteGeneration: (id) => api.delete(`/ai/history/${id}`),
-  translate: (text, targetLanguage = 'en') => api.post('/ai/translate', { text, targetLanguage })
+  translate: (text, targetLanguage = 'en') => api.post('/ai/translate', { text, targetLanguage }),
+  saveKeys: (keys) => api.post('/ai/save-keys', keys),
 };
 
 export const adminAPI = {

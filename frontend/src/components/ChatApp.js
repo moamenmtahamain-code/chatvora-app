@@ -348,7 +348,7 @@ export default function ChatApp() {
         </button>
       </div>
 
-      {(currentCall || callStatus) && <CallOverlay />}
+      <CallOverlay />
 
       <div className={`e2ee-badge ${isE2EE ? 'enabled' : ''}`} title={isE2EE ? 'End-to-end encrypted' : 'Encryption not available'}>
         <FiShield size={12} />
