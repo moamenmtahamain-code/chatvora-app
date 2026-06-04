@@ -23,7 +23,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
   const { logout, updateProfile } = useAuthStore();
   const { activeConversation, setActiveConversation, createConversation } = useChatStore();
   const { initiateCall } = useCallStore();
-  const { friends, friendRequests, fetchFriends, fetchFriendRequests, acceptRequest, rejectRequest } = usePremiumStore();
+  const { friends = [], friendRequests = [], fetchFriends, fetchFriendRequests, acceptRequest, rejectRequest } = usePremiumStore() || {};
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
@@ -105,7 +105,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
   const pinnedConversations = useMemo(() => filteredConversations.filter(conv => conv.isPinned), [filteredConversations]);
   const archivedConversations = useMemo(() => filteredConversations.filter(conv => conv.isArchived), [filteredConversations]);
 
-  useEffect(() => { fetchFriends(); fetchFriendRequests(); }, []);
+  useEffect(() => { fetchFriends?.(); fetchFriendRequests?.(); }, []);
 
   const getOnlineMemberCount = (conv) => {
     if (conv.type !== 'group') return 0;
@@ -114,7 +114,7 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
 
   const tabs = [
     { id: 'chats', label: 'Chats' },
-    { id: 'friends', label: `Friends${(friendRequests?.length ?? 0) > 0 ? ` (${friendRequests.length})` : ''}` },
+    { id: 'friends', label: `Friends${(friendRequests?.length ?? 0) > 0 ? ` (${friendRequests?.length})` : ''}` },
     { id: 'groups', label: 'Groups' },
     { id: 'archive', label: 'Archive' },
     { id: 'calls', label: 'Calls' }
@@ -317,9 +317,9 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
             {(friendRequests?.length ?? 0) > 0 && (
               <>
                 <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>
-                  FRIEND REQUESTS ({friendRequests.length})
+                  FRIEND REQUESTS ({friendRequests?.length || 0})
                 </div>
-                {friendRequests.map(req => (
+                {friendRequests?.map(req => (
                   <div key={req._id} className="conversation-item" style={{ background: 'rgba(99,102,241,0.06)', borderRadius: '12px', marginBottom: '4px' }}>
                     <div className="avatar">
                       {req.from?.avatar ? <img src={req.from.avatar} alt="" /> : (req.from?.displayName || '?')[0].toUpperCase()}
@@ -337,9 +337,9 @@ const Sidebar = memo(function Sidebar({ user, conversations, onSelectConversatio
               </>
             )}
             <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
-              MY FRIENDS ({friends.length})
+              MY FRIENDS ({friends?.length || 0})
             </div>
-            {friends.length > 0 ? friends.map(f => (
+            {(friends?.length || 0) > 0 ? friends?.map(f => (
               <motion.div key={f._id} className="conversation-item" onClick={() => handleSelectUser(f)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
                 <div className={`avatar ${f.isOnline ? 'online' : ''}`}>
                   {f.avatar ? <img src={f.avatar} alt="" /> : (f.displayName || f.username || '?')[0].toUpperCase()}
