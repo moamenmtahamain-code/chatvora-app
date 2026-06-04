@@ -1,141 +1,64 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { FiWifiOff, FiRefreshCw } from 'react-icons/fi';
+import { FiWifiOff } from 'react-icons/fi';
 
 export default function OfflinePage() {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
-  const handleRetry = () => {
-    window.location.reload();
-  };
-
   return (
     <div style={{
-      height: '100vh',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'var(--gradient-dark, #0F172A)',
-      color: '#e2e8f0',
-      padding: 24,
+      minHeight: '100vh',
+      background: 'var(--bg-primary, #0f0f1a)',
+      color: 'var(--text-primary, #e2e8f0)',
+      padding: '24px',
       textAlign: 'center',
-      gap: 24,
+      fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
       <div style={{
-        width: 80,
-        height: 80,
-        borderRadius: 24,
-        background: 'linear-gradient(135deg, rgba(109,93,246,0.15), rgba(139,92,246,0.15))',
+        width: '80px',
+        height: '80px',
+        borderRadius: '50%',
+        background: 'rgba(99,102,241,0.15)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 36,
-        color: '#6D5DF6',
+        marginBottom: '24px'
       }}>
-        <FiWifiOff />
+        <FiWifiOff size={40} color="#6366f1" />
       </div>
-
-      <div>
-        <h1 style={{
-          fontSize: 24,
-          fontWeight: 700,
-          marginBottom: 8,
-          letterSpacing: '-0.02em',
-        }}>
-          {isOnline ? 'You\'re back online!' : 'No internet connection'}
-        </h1>
-        <p style={{
-          color: '#94a3b8',
-          fontSize: 15,
-          lineHeight: 1.6,
-          maxWidth: 360,
-          margin: '0 auto',
-        }}>
-          {isOnline
-            ? 'Your connection has been restored. Tap below to continue.'
-            : 'Please check your connection and try again. Some features may be limited.'}
-        </p>
-      </div>
-
-      {isOnline ? (
-        <button
-          onClick={handleRetry}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '14px 32px',
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #6D5DF6, #8b5cf6)',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: 15,
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(109,93,246,0.25)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.03)';
-            e.target.style.boxShadow = '0 6px 28px rgba(109,93,246,0.35)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)';
-            e.target.style.boxShadow = '0 4px 20px rgba(109,93,246,0.25)';
-          }}
-        >
-          <FiRefreshCw size={18} />
-          Continue
-        </button>
-      ) : (
-        <button
-          onClick={handleRetry}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '14px 32px',
-            borderRadius: 12,
-            background: 'rgba(255,255,255,0.06)',
-            color: '#e2e8f0',
-            fontWeight: 600,
-            fontSize: 15,
-            border: '1px solid rgba(255,255,255,0.08)',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.1)'; }}
-          onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.06)'; }}
-        >
-          <FiRefreshCw size={18} />
-          Try Again
-        </button>
-      )}
-
-      <div style={{
-        marginTop: 16,
-        fontSize: 13,
-        color: '#64748b',
+      <h1 style={{
+        fontSize: '24px',
+        fontWeight: '700',
+        marginBottom: '12px'
       }}>
-        Chatvora
-      </div>
+        You're Offline
+      </h1>
+      <p style={{
+        fontSize: '15px',
+        color: 'var(--text-muted, #94a3b8)',
+        maxWidth: '360px',
+        lineHeight: '1.6',
+        marginBottom: '24px'
+      }}>
+        It looks like you've lost your internet connection. Don't worry — your messages are saved and will be sent once you're back online.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        style={{
+          background: 'var(--primary, #6366f1)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '12px 32px',
+          fontSize: '15px',
+          fontWeight: '600',
+          cursor: 'pointer'
+        }}
+      >
+        Try Again
+      </button>
     </div>
   );
 }

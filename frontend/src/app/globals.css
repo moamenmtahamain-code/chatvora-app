@@ -8968,3 +8968,222 @@ body.sidebar-open {
     font-size: 20px;
   }
 }
+
+/* ─── MOBILE KEYBOARD HANDLING (Visual Viewport API) ──────────── */
+@supports (height: 100dvh) {
+  .app-container {
+    height: 100dvh;
+  }
+  html, body {
+    height: 100dvh;
+  }
+}
+
+/* Ensure input area stays above keyboard on mobile */
+.chat-area {
+  height: 100%;
+  height: 100dvh;
+}
+
+.input-area {
+  flex-shrink: 0;
+  /* Prevent iOS from scrolling the input out of view */
+  position: relative;
+  z-index: 10;
+  /* Use safe area insets for notch devices */
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Mobile-specific: when virtual keyboard is open, adjust layout */
+@media (max-width: 768px) {
+  .input-area {
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .chat-header {
+    padding: 12px 16px;
+  }
+
+  /* Larger touch targets for mobile */
+  .header-action-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .input-action-btn {
+    width: 42px;
+    height: 42px;
+  }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Messages take more width on mobile */
+  .message {
+    max-width: 85%;
+  }
+
+  .message-input {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .sidebar-tabs {
+    padding: 10px 12px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sidebar-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Swipe action hint animation */
+  .conversation-item {
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Better mobile scrolling */
+  .messages-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 12px;
+  }
+
+  /* Ensure emoji picker fits on mobile screen */
+  .emoji-picker-container {
+    left: 0;
+    right: 0;
+    max-height: 60vh;
+    overflow: auto;
+  }
+
+  .attachment-menu {
+    left: 8px;
+    right: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ─── PWA STANDALONE MODE ADJUSTMENTS ─────────────────────────── */
+@media all and (display-mode: standalone) {
+  .app-container {
+    /* Use safe area for phones with notch */
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .sidebar-header {
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+
+  .chat-header {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  /* Hide install prompt in standalone mode */
+  .pwa-install-prompt {
+    display: none !important;
+  }
+}
+
+/* ─── IOS SAFE AREA SUPPORT ───────────────────────────────────── */
+@supports (padding: max(0px)) {
+  .input-area {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .sidebar-install-section {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ─── HIGH REFRESH RATE / SMOOTH ANIMATIONS ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .message {
+    animation: none;
+  }
+
+  .conversation-item {
+    transition: none;
+  }
+}
+
+/* ─── NOTIFICATION PERMISSION BANNER ──────────────────────────── */
+.notification-permission-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(139,92,246,0.95));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  animation: slideDownBanner 0.3s ease;
+}
+
+@keyframes slideDownBanner {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.notification-permission-banner button {
+  padding: 6px 16px;
+  background: rgba(255,255,255,0.25);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.notification-permission-banner button:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+/* ─── SWIPE ACTION INDICATOR ──────────────────────────────────── */
+.swipe-action-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  color: white;
+  font-size: 20px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.swipe-action-indicator.delete {
+  right: 0;
+  background: var(--danger);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.swipe-action-indicator.archive {
+  left: 0;
+  background: var(--warning);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
